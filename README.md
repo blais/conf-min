@@ -1,2 +1,1 @@
-# conf-min
-Minimal config
+# Configuration files for minimal setup

@@ -1,0 +1,88 @@
+# ~/.tmux.conf
+#
+# If this file isn't read, it is simply because the server has already been started.
+#
+# The server socket is stored under /var/run/tmux/tmux-USERID/default
+# - You can make it readable by others, so they can share with you
+
+# Make sure we have a lot of history.
+set-option -g history-limit 16384
+
+# Insure we have a 256 color terminal.
+set-option -g default-terminal screen-256color
+
+# Time delay required to detect function keys. We don't really need this, but it helps using ESC in emacs.
+set -s escape-time 50
+
+# Override the prefix key.
+set-option -g prefix M-a
+set-option -g set-clipboard on
+
+# Start counting windows at one, not zero (better for key switching)
+set-option -g base-index 1
+set-option -g pane-base-index 1
+
+# Bind next/previous keys similar to vi and what I use on the Mac.
+bind-key   h    previous-window
+bind-key   l    next-window
+bind-key   H    switch-client -p
+bind-key   L    switch-client -n
+
+# Keys to switch to various clients directly.
+bind-key   6    switch-client -t 0
+bind-key   7    switch-client -t 1
+bind-key   8    switch-client -t 2
+bind-key   9    switch-client -t 3
+bind-key   0    switch-client -t 4
+
+# Emacs yank binding reproduced in tmux instead of KEY-]
+bind-key   C-y  paste-buffer
+
+# Backwards pane movement key.
+bind-key   O    select-pane -t :.-
+
+# Double up the prefix key to send it
+bind-key   M-a  send-prefix
+
+# Change background colors
+# black, red, green, yellow, blue, magenta, cyan, white, colour0 to colour255, #ffffff
+bind-key   M-7    set-option  status-style bg=green
+bind-key   M-8    set-option  status-style bg=yellow
+bind-key   M-9    set-option  status-style bg=blue
+bind-key   M-0    set-option  status-style bg=magenta
+bind-key   M--    set-option  status-style bg=cyan
+
+bind-key   M-B    set-option  status-style bg=blue
+bind-key   M-G    set-option  status-style bg=green
+bind-key   M-Y    set-option  status-style bg=yellow
+bind-key   M-M    set-option  status-style bg=magenta
+bind-key   M-C    set-option  status-style bg=cyan
+bind-key   M-R    set-option  status-style bg=red
+bind-key   M-W    set-option  status-style bg=white
+
+# Reset search commands so that they don't include the history of past searches.
+bind-key  -T copy-mode  C-r  command-prompt -i -p "(search up)" "send -X search-backward-incremental \"%%%\""
+bind-key  -T copy-mode  C-s  command-prompt -i -p "(search down)" "send -X search-forward-incremental \"%%%\""
+
+bind-key    -T copy-mode    C-r  command-prompt -i -p "(search up)"   "send -X search-backward-incremental \"%%%\""
+bind-key    -T copy-mode    C-s  command-prompt -i -p "(search down)" "send -X search-forward-incremental \"%%%\""
+
+
+
+
+# About refresh problem... try this:
+##set-window-option -g xterm-keys
+
+
+
+# c0-change-interval interval
+# c0-change-trigger trigger
+#
+#         These two options configure a simple form of rate limiting for a pane.
+#         If tmux sees more than trigger C0 sequences that modify the screen
+#         (for example, carriage returns, linefeeds or backspaces) in one
+#         millisecond, it will stop updating the pane immediately and instead
+#         redraw it entirely every interval milliseconds. This helps to prevent
+#         fast output (such as yes(1) overwhelming the terminal). The default is
+#         a trigger of 250 and an interval of 100. A trigger of zero disables
+#         the rate limiting.
