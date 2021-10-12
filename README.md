@@ -1,0 +1,2 @@
+# conf-min
+Minimal config
