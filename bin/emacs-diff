@@ -1,0 +1,8 @@
+#!/bin/bash
+# Diff two files in the console.
+
+THISDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+FILE_A=$1
+FILE_B=$2
+emacs -nw -Q --load ${THISDIR}/emacs-diff.el --eval "(ediff-guess-from-filenames \"$FILE_A\" \"$FILE_B\")"

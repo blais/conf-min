@@ -1,0 +1,17 @@
+#!/bin/bash
+# Diff-merge three files in the console.
+#
+# Setup for Mercurial:
+# [ui]
+# merge = emacs-merge
+# [merge-tools]
+# emacs-merge.args = $local $other $base $output
+
+THISDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+FILE_A=$1
+FILE_B=$2
+ANCESTOR=$3
+OUTPUT=$4
+set -x
+emacs -nw -Q --load ${THISDIR}/emacs-diff.el --eval "(ediff-merge-with-ancestor \"$FILE_A\" \"$FILE_B\" \"$ANCESTOR\" nil \"$OUTPUT\")"

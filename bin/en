@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+# Call emacsclient for the current tmux session. We're assuming that there is at
+# least one emacs server running in each tmux session, that has been started
+# with name "serverX", where X is the tmux session number, and we want to direct
+# the emacsclient request to the corresponding server.
+# This can be accomplished in Emacs by setting the variable "server-name".
+#
+# If this is not run in a tmux session, direct this to the default server.
+#
+# Note that we're passing in the user-supplied args, so if you don't want the
+# emacsclient program to wait, you can use -n / --no-wait, for example.
+
+# The current tmux session appears as the last comma-separated digit in the TMUX
+# variable.
+# Note: this expansion only works in bash.
+TMUX_SESSION=${TMUX/*,/}
+
+if [ -n "$TMUX_SESSION" ]; then
+  SESSION_ARGS=--socket-name=server$TMUX_SESSION
+fi
+
+emacsclient -n $SESSION_ARGS $*
+tmux select-window -t 1
