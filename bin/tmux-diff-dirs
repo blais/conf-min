@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+"""Diff two directories by calling tmux-diff repeatedly.
+
+This can be used as a command for Mercurial.
+"""
+__author__ = 'Martin Blais <blais@furius.ca>'
+
+from os import path
+import argparse
+import curses
+import curses.ascii
+import logging
+import os
+import re
+import string
+import subprocess
+import sys
+
+
+KEYS_ENTER = (curses.KEY_ENTER, ord('\n'), ord('\r'))
+KEYS_UP = (curses.KEY_UP, ord('k'), ord('p'))
+KEYS_DOWN = (curses.KEY_DOWN, ord('j'), ord('n'))
+KEYS_UP_AND_OPEN = (ord('P'),)
+KEYS_DOWN_AND_OPEN = (ord('N'),)
+KEYS_EDIT_LEFT = (ord('l'),)
+KEYS_EDIT_RIGHT = (ord('r'), ord('e'))
+KEYS_QUIT = (ord('q'),)
+
+
+class Picker:
+    """Picker class. Modeled after github.com/wong2/pick.
+
+    Args:
+      options: A list of options to choose from.
+      title: (optional) A title above options list.
+      indicator: (optional) Custom the selection indicator.
+      default_index: (optional) Set this if the default selected option is not
+        the first one.
+    """
+    def __init__(self, options,
+                 title=None,
+                 indicator='=>',
+                 default_index=0):
+
+        if len(options) == 0:
+            raise ValueError('Options should not be an empty list.')
+
+        self.options = ["{}. {}".format(char, name) for char, name, _ in options]
+        self.values = {index: value
+                       for index, (_, _, value) in enumerate(options)}
+        self.title = title
+        self.indicator = indicator
+
+        if default_index >= len(options):
+            raise ValueError('Default_index should be less than the length of options.')
+
+        self.index = default_index
+        self.handlers = dict((ord(char), index)
+                             for index, (char, _, _) in enumerate(options))
+
+    def move_up(self):
+        self.index -= 1
+        if self.index < 0:
+            self.index = len(self.options) - 1
+
+    def move_down(self):
+        self.index += 1
+        if self.index >= len(self.options):
+            self.index = 0
+
+    def get_title_lines(self):
+        if self.title:
+            return self.title.split('\n') + ['']
+        return []
+
+    def get_option_lines(self):
+        lines = []
+        for index, option in enumerate(self.options):
+            if index == self.index:
+                prefix = self.indicator
+            else:
+                prefix = len(self.indicator) * ' '
+
+            line = '{0} {1}'.format(prefix, option)
+            lines.append(line)
+
+        return lines
+
+    def get_lines(self):
+        title_lines = self.get_title_lines()
+        option_lines = self.get_option_lines()
+        lines = title_lines + option_lines
+        current_line = self.index + len(title_lines) + 1
+        return lines, current_line
+
+    def draw(self):
+        """draw the curses ui on the screen, handle scroll if needed"""
+        self.screen.clear()
+
+        x, y = 1, 1  # Start point.
+        max_y, max_x = self.screen.getmaxyx()
+        max_rows = max_y - y  # The max rows we can draw.
+
+        lines, current_line = self.get_lines()
+
+        # Calculate how many lines we should scroll, relative to the top.
+        scroll_top = getattr(self, 'scroll_top', 0)
+        if current_line <= scroll_top:
+            scroll_top = 0
+        elif current_line - scroll_top > max_rows:
+            scroll_top = current_line - max_rows
+        self.scroll_top = scroll_top
+
+        lines_to_draw = lines[scroll_top:scroll_top+max_rows]
+
+        for line in lines_to_draw:
+            if type(line) is tuple:
+                self.screen.addnstr(y, x, line[0], max_x-2, line[1])
+            else:
+                self.screen.addnstr(y, x, line, max_x-2)
+            y += 1
+
+        self.screen.refresh()
+
+    def run_loop(self):
+        while True:
+            self.draw()
+            c = self.screen.getch()
+            if c in KEYS_QUIT:
+                return 'QUIT', None
+            elif c in KEYS_UP:
+                self.move_up()
+            elif c in KEYS_UP_AND_OPEN:
+                self.move_up()
+                return 'DIFF', self.values[self.index]
+            elif c in KEYS_DOWN:
+                self.move_down()
+            elif c in KEYS_DOWN_AND_OPEN:
+                self.move_down()
+                return 'DIFF', self.values[self.index]
+            elif c in KEYS_ENTER:
+                return 'DIFF', self.values[self.index]
+            elif c in KEYS_EDIT_LEFT:
+                return 'EDIT_LEFT', self.values[self.index]
+            elif c in KEYS_EDIT_RIGHT:
+                return 'EDIT_RIGHT', self.values[self.index]
+            else:
+                try:
+                    index = self.handlers[c]
+                    return 'DIFF', self.values[index]
+                except KeyError:
+                    pass
+
+    def configure_curses(self):
+        try:
+            # Use the default colors of the terminal.
+            curses.use_default_colors()
+            # Hide the cursor.
+            curses.curs_set(0)
+            # Add some color for multi_select.
+            # @todo make colors configurable
+            curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_WHITE)
+        except:
+            # Curses failed to initialize color support, eg. when TERM=vt100.
+            curses.initscr()
+
+    def _start(self, screen):
+        self.screen = screen
+        self.configure_curses()
+        return self.run_loop()
+
+    def start(self):
+        return curses.wrapper(self._start)
+
+
+def find_files(directory):
+    """Find relative filenames within a given directory.
+
+    Args:
+      directory: A string, the root of the directory to add.
+    Yields:
+      Filenames relative to this directory.
+    """
+    directory = path.normpath(directory)
+    nskip = len(directory) + 1
+    if path.isdir(directory):
+        for root, dirs, files in os.walk(directory):
+            for filename in files:
+                yield path.join(root, filename)[nskip:]
+    else:
+        yield directory[nskip:]
+
+
+def ensure_dir(directory):
+    if not path.exists(directory):
+        os.makedirs(directory)
+
+
+def read_file_list(local, remote, strip_prefix=None):
+    # If run on multiple files, you will get two relative directories.
+    cwd = os.getcwd()
+    if path.isdir(local) and path.isdir(remote):
+        allfiles = set(find_files(local)) | set(find_files(remote))
+        filemap = [(fn, (path.abspath(path.join(local, fn)),
+                         path.abspath(path.join(remote, fn))))
+                   for fn in allfiles]
+    else:
+        # Otherwise you will get two filenames instead of two directory names,
+        # which may be absolute or relative. Compute the common suffix.
+        name = path.commonprefix([local[::-1], remote[::-1]])[::-1].lstrip("/")
+        filemap = [(name, (path.abspath(local), path.abspath(remote)))]
+
+    # Strip google3/ root dir if both have it.
+    if strip_prefix:
+        regexp = re.compile("^{}".format(re.escape(strip_prefix)))
+        filemap = [(regexp.sub("", name), args) for name, args in filemap]
+
+    return filemap
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser.add_argument("local", help="Root of local.")
+    parser.add_argument("remote", help="Root of remote.")
+    parser.add_argument('-c', '--command', action='store', default="emacs-diff",
+                        help="Command to run for diffs.")
+    parser.add_argument('-e', '--edit-command', action='store', default="e",
+                        help="Command to run for editing.")
+    parser.add_argument('-p', '--strip-prefix', action='store', default=None,
+                        help="Optional common prefix to strip.")
+    args = parser.parse_args()
+
+    filemap = read_file_list(args.local, args.remote, args.strip_prefix)
+    chars = (string.digits + string.ascii_letters)[1:] + (' ' * len(filemap))
+    options = [(chars[index], name, value)
+               for index, (name, value) in enumerate(sorted(filemap))]
+    picker = Picker(options, "Diff files.")
+    while True:
+        try:
+            action, arg = picker.start()
+        except KeyboardInterrupt:
+            break
+        if action == 'QUIT':
+            break
+        else:
+            left, right = arg
+
+            if action == 'DIFF':
+                # Ensure files exist because emacs-diff doesn't handle one empty side.
+                if not path.exists(left):
+                    os.makedirs(path.dirname(left), exist_ok=True)
+                    open(left, "w").close()
+                if not path.exists(right):
+                    os.makedirs(path.dirname(right), exist_ok=True)
+                    open(right, "w").close()
+
+                diff_command = [args.command, left, right]
+                subprocess.call(diff_command, shell=False)
+
+            elif action == 'EDIT_LEFT':
+                edit_command = [args.edit_command, left]
+                subprocess.call(edit_command, shell=False)
+
+            elif action == 'EDIT_RIGHT':
+                edit_command = [args.edit_command, right]
+                subprocess.call(edit_command, shell=False)
+
+
+if __name__ == '__main__':
+    main()

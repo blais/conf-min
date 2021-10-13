@@ -1,0 +1,20 @@
+# -*- mode: conf -*-
+
+[core]
+	editor = ~/p/conf/bin/e
+
+[alias]
+        glog = log --graph
+	s  = status --short
+	st = status --short
+	co = checkout
+	cia = commit --all
+        out      = log --branches --not --remotes=origin
+        outgoing = log --branches --not --remotes=origin
+        br = branch -v -a
+
+[push]
+	default = simple
+
+[pull]
+	ff = only

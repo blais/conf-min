@@ -3102,7 +3102,8 @@ last-killed-buffer."
 (defun setup-auto-delete-trailing-whitespace ()
   "Automatically setup for deleting trailing whitespace for all code
 under my projects subdirectory."
-  (when (string-match user-projects-root (buffer-file-name))
+  (when (and user-projects-root
+             (string-match user-projects-root (buffer-file-name)))
     (setq show-trailing-whitespace t)
     (add-to-list 'write-contents-functions 'delete-trailing-whitespace)))
 
@@ -5813,6 +5814,8 @@ current buffer."
 ;;------------------------------------------------------------------------------
 ;; OCaml
 
+(when nil ;;; Ancient configuration
+
 (setq flavor 'emacs-snapshot) ;; FIXME we should probably not fix it.
 ;; (load "/etc/emacs/site-start.d/50ocaml-mode.el")
 (load "/etc/emacs/site-start.d/51tuareg-mode.el" t)
@@ -5876,7 +5879,7 @@ current buffer."
 ;;             (prin1 (concat "FILE " fn))
 ;;             (find-file-read-only fn))))))
 
-
+)
 
 ;;------------------------------------------------------------------------------
 ;; ESS / R
@@ -7077,14 +7080,14 @@ horizontal split."
         (add-to-list 'magic-mode-alist
                      (cons (concat "\\(^\\s-*\\(#.*\\|\\)\n\\)*^\\(syntax = \\|import \\|package \\)") 'protobuffer-mode))) )
   (progn
-    (require 'pbascii)
-    (add-to-list 'auto-mode-alist
-                 '("\\.\\(pb\\|.asciipb\\|proto\\.txt\\|pbtxt\\)$" . pbascii-mode))
-    (when (boundp 'magic-mode-alist)
-      (add-to-list 'magic-mode-alist
-                   (cons (concat "\\(^\\s-*\\(#.*\\|\\)\n\\)*"
-                                 "[a-z_]+\\( {\\|: \\(<\\|[0-9]+\\|\".*\"\\)\\)\\s-*$") 'pbascii-mode)))
-    ))
+    (when (require 'pbascii nil t)
+      (add-to-list 'auto-mode-alist
+                   '("\\.\\(pb\\|.asciipb\\|proto\\.txt\\|pbtxt\\)$" . pbascii-mode))
+      (when (boundp 'magic-mode-alist)
+        (add-to-list 'magic-mode-alist
+                     (cons (concat "\\(^\\s-*\\(#.*\\|\\)\n\\)*"
+                                   "[a-z_]+\\( {\\|: \\(<\\|[0-9]+\\|\".*\"\\)\\)\\s-*$") 'pbascii-mode)))
+      )))
 
 
 
@@ -7464,8 +7467,9 @@ process. Attempts to get rid of the buffer afterwards."
 ;;   ad-do-it)
 
 ;; Kill the buffer that we're exiting when we're done.
-(add-hook 'server-done-hook
-	  (lambda () (kill-buffer (current-buffer))))
+(when (equal (getenv "SITE") "home") ;; For minimal config.
+  (add-hook 'server-done-hook
+	    (lambda () (kill-buffer (current-buffer)))))
 
 ;; Pour eviter prompt quand on a deja buffer du meme nom.
 (setq server-temp-file-regexp

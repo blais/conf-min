@@ -1,0 +1,32 @@
+# -*- mode: conf -*-
+
+[diff]
+        tool = tmux-diff
+
+[merge]
+	tool = emacs-merge
+[mergetool "emacs-merge"]
+	cmd = ~/p/conf/bin/emacs-merge \"$LOCAL\" \"$REMOTE\" \"$BASE\" \"$MERGED\"
+
+[difftool "emacs-diff"]
+        cmd = ~/p/conf/bin/emacs-diff \"$LOCAL\" \"$REMOTE\"
+[difftool "tmux-diff"]
+        cmd = ~/p/conf/bin/tmux-diff \"$LOCAL\" \"$REMOTE\"
+[difftool "activediff"]
+        cmd = ~/p/conf/bin/tmux-diff-dirs \"$LOCAL\" \"$REMOTE\"
+
+[difftool "xxdiff"]
+        cmd = ~/p/xxdiff/bin/xxdiff \"$LOCAL\" \"$REMOTE\"
+[difftool "xxdiff-dir"]
+        cmd = ~/p/xxdiff/bin/xxdiff -r \"$LOCAL\" \"$REMOTE\"
+
+[difftool]
+        prompt = false
+
+[alias]
+        xdiff  = difftool -t xxdiff
+        xxdiff = difftool -t xxdiff
+        xddiff = difftool -t xxdiff-dir -d
+        tdiff = difftool -t tmux-diff
+        ediff  = difftool -t emacs-diff
+        adiff = difftool -t activediff -d
