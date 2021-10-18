@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Local customizations.
+PATH=$HOME/p/conf/bin:$PATH
+export PATH
+
+# Call on the emacsclient and don't wait.
+EDITOR="$HOME/p/conf/bin/e"
+export EDITOR
+
+# Prevent too easy terminal exit on ^D.
+IGNOREEOF=2
+
+# Some pretty generic aliases.
+alias l='ls -la'

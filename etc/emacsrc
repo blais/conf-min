@@ -1762,24 +1762,12 @@ whole frigging screen, ok?"
 
 (require 'compile)
 
-;; Make compilation automatically kill a current one.
-;; Note: I've submitted this as a patch to Emacs.
-(when (load "compile-hacks.el" t)
-  (setq compilation-always-kill t)
-  ;; Another mode which does something similar is:
-  ;;(require 'compilation-always-kill)
-
-  ;; Here's another way to do this:
-  ;; (add-hook 'compilation-start-hook
-  ;;   (lambda (process) (set-process-query-on-exit-flag process nil)) nil t)"
-  )
-
 (define-key* compilation-mode-map [(control c)(control c)] nil)
 
 (setq-default compile-command "make")
 
 (setq compilation-window-height 15
-      ;;  compilation-read-command t
+      compilation-read-command t
       compilation-scroll-output t
       compilation-ask-about-save nil ;; Saves all buffers automatically
       )
@@ -4634,7 +4622,7 @@ attempting not to change them by too large an amount."
 (when (featurep 'repeatable)
   (repeatable-command-advice insert-randomized-text))
 (define-key* text-mode-map [(control c)(j)] 'insert-randomized-text)
-(define-key* global-map [(control c)(j)] 'insert-randomized-text)
+;(define-key* global-map [(control c)(j)] 'insert-randomized-text)
 
 
 ;;--------------------------------------------------------------------------------
@@ -6599,8 +6587,9 @@ mode, for instance, if you're editing lisp, this will call
 (global-set-key* [(control x)(w)] (lambda () (interactive)
 				   (message (buffer-file-name))))
 
-(global-set-key* [(control c)(i)] (lambda () (interactive)
-				   (insert (buffer-file-name))))
+(when (equal (getenv "SITE") "home")
+  (global-set-key* [(control c)(I)] (lambda () (interactive)
+				      (insert (buffer-file-name)))))
 
 
 ;; (global-set-key* [(control c)(?`)]
@@ -6995,8 +6984,7 @@ kill-ring.  With prefix arg, compare the last three."
 ;;------------------------------------------------------------------------------
 ;; Support for browsing the kill-ring
 
-(when (require 'browse-kill-ring nil t)
-  (require 'browse-kill-ring+))
+(require 'browse-kill-ring nil t)
 
 
 ;;------------------------------------------------------------------------------
