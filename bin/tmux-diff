@@ -1,0 +1,10 @@
+#!/bin/bash
+WINDOW="tmux-diff-$RANDOM"
+tmux new-window -n $WINDOW "emacs-diff $*"
+
+# new-window exits immediately, which makes an invoking program (e.g.,
+# mercurial) clean up the temporary files before emacs can get to them; find a
+# way to make it wait until the new window has completed.
+while tmux list-windows -F '#{window_name}' | grep -q $WINDOW ; do
+  sleep 0.2
+done

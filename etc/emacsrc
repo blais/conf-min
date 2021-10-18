@@ -25,6 +25,8 @@
 ;; TODO: remove all personal identification from this file (esp. email section) -> conf-home
 ;; TODO: clean up new overrides
 
+(when (not (equal (getenv "SITE") "home"))
+
 (defvar home (getenv "HOME"))
 
 ;; Adjust default startup directory on platforms without a HOME.
@@ -8232,3 +8234,5 @@ With prefix ARG non-nil, insert the result at the end of region."
 ;;; (setq comint-buffer-maximum-size 1024)
 ;;; (add-hook 'comint-output-filter-functions
 ;;;           'comint-truncate-buffer)
+
+)
