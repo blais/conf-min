@@ -1,0 +1,9 @@
+#!/bin/bash
+declare -a COLORS=("green" "yellow" "blue" "magenta" "cyan")
+NSESSION=$(tmux list-sessions | wc -l)
+COLOR=${COLORS[$NSESSION]}
+
+tmux new-session 'emacs -nw'                    \
+  \; set-option status-bg ${COLOR}              \
+  \; new-window                                 \
+  \; select-window -t :1
