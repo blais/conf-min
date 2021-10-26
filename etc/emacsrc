@@ -2716,7 +2716,7 @@ the current buffer's directory."
 	     (xxdiff-svn-diff))
 	    ((eq backend 'Hg)
              (let ((default-directory (file-name-directory fn)))
-               (call-process "hg" nil outbuf t "tmuxdiff" "-q" fn)))
+               (call-process "hg" nil outbuf t "tmux-diff" "-q" fn)))
 	    ((eq backend 'Git)
 	     (vc-git-diff-visual fn))
             ((eq backend nil)
@@ -6930,13 +6930,13 @@ with all the lines between mark + (mark - point)."
 ;; (substitute-key-definition 'vc-diff 'vc-diff-xxdiff vc-prefix-map)
 
 ;;------------------------------------------------------------------------------
-;; tmuxdiff support.
+;; tmux-diff support.
 
-(defvar tmuxdiff-exec "tmuxdiff"
-  "The tmuxdiff executable to run.")
+(defvar tmux-diff-exec "tmux-diff"
+  "The tmux-diff executable to run.")
 
-(defun tmuxdiff-compare-kill-ring ()
-  "Spawn an tmuxdiff to compare the last two entries on the
+(defun tmux-diff-compare-kill-ring ()
+  "Spawn an tmux-diff to compare the last two entries on the
 kill-ring.  With prefix arg, compare the last three."
   (interactive)
 
@@ -6952,12 +6952,12 @@ kill-ring.  With prefix arg, compare the last three."
       )
 
     (setq files (mapcar
-		 (lambda (sel) (let ((fn (make-temp-file "tmuxdiff-emacs.")))
+		 (lambda (sel) (let ((fn (make-temp-file "tmux-diff-emacs.")))
 				 (with-temp-file fn (insert sel))
 				 fn))
 		 selections))
 
-    (let ((args (append (list tmuxdiff-exec nil nil nil) files)))
+    (let ((args (append (list tmux-diff-exec nil nil nil) files)))
       (apply 'call-process args)
       )
     (dolist (fn files)
@@ -6966,8 +6966,8 @@ kill-ring.  With prefix arg, compare the last three."
 
 ;; (define-key* vc-prefix-map [(backspace)] 'xxdiff-diff-buffer-and-file)
 ;; (define-key* vc-prefix-map [(?+)] 'xxdiff-svn-diff)
-;; (define-key* vc-prefix-map [(?9)] 'tmuxdiff-compare-selections)
-(define-key* vc-prefix-map [(?0)] 'tmuxdiff-compare-kill-ring)
+;; (define-key* vc-prefix-map [(?9)] 'tmux-diff-compare-selections)
+(define-key* vc-prefix-map [(?0)] 'tmux-diff-compare-kill-ring)
 
 
 
