@@ -423,7 +423,7 @@ found in."
 (setq kill-whole-line t)
 
 ;; Pending delete-mode deletes selected region on input.
-;; (setq delete-selection-mode nil)
+(setq delete-selection-mode nil)
 
 ;; Garbage collector size (500K for allocating stuff).
 (setq gc-cons-threshold 500000)
@@ -630,7 +630,11 @@ found in."
 (setq dired-recursive-deletes 'always
       dired-listing-switches "-al" ;; "-aoh"
       dired-omit-size-limit 100000
-      dired-omit-extensions nil
+
+      ;; Note that we need this for Ocaml, since it generates build outputs next
+      ;; to the source code.
+      ;; dired-omit-extensions nil
+
       dired-omit-files (rx (or
 			    (seq bol (or "." "..")) ; directories
 			    (seq bol (? ".") "#") ; emacs autosave files
