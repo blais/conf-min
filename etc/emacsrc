@@ -37,7 +37,7 @@
 ;;------------------------------------------------------------------------------
 ;; User variables
 
-(defvar user-projects-root (getenv "PROJECTS")
+(defvar user-projects-root (or (getenv "PROJECTS") (concat (getenv "HOME") "/p"))
   "Directory where all personal projects are checked out.")
 
 
@@ -8093,10 +8093,7 @@ whose basenames match the PRED predicate."
 
 (when (and user-projects-root (file-exists-p user-projects-root))
 
-  ;; Load all the conf files first.
-  (project-load-emacs-files user-projects-root "etc/emacsrc"
-			    (lambda (x) (string-match "conf-" x)))
-
+  ;; Note: Conf files now have to be loaded explicitly.
 
   ;; Load all the other project files in a second step.
   (project-load-emacs-files user-projects-root "etc/emacsrc"
