@@ -393,6 +393,13 @@ found in."
 (put 'upcase-region 'disabled nil)
 (put 'downcase-region 'disabled nil)
 
+;; On Windows computers, ALt-L is bound irrevocably to Lock screen. The only way
+;; to disable this is by editing the regsitry and well, on a work machine it's
+;; often locked down. The solution is to stop using ALt-L for downcase-word.
+;; Add those mappings to shifted versions for downcase and upcase of words.
+(define-key* global-map [(meta shift l)] 'downcase-word)
+(define-key* global-map [(meta shift u)] 'upcase-word)
+
 ;; Remap narrow-to-region because C-x n n gets overloaded.
 (define-key* ctl-x-map [(n)(r)] 'narrow-to-region)
 
@@ -6417,6 +6424,88 @@ mode, for instance, if you're editing lisp, this will call
 (defadvice sql-product-interactive (after fix-sql-buffer-as-global activate)
   (setq-default sql-buffer (get-buffer "*SQL*")))
 
+;;------------------------------------------------------------------------------
+;; SQL formatting/indenting.
+
+;; Uses sqlparse (a Python tool).
+
+;; (defun sqlparse-region (beg end)
+;;   (interactive "r")
+;;   (shell-command-on-region
+;;    beg end
+;;    (format "~/py/bin/python -c '%s'"
+;;            "import sys, sqlparse; print(sqlparse.format(sys.stdin.read(), reindent=True))")
+;;    t t))
+
+(defun sqlparse-string (input-string)
+  "Run sqlparse on a string; returning a string."
+  (with-temp-buffer
+    (call-process-region input-string nil
+                         "~/py/bin/python" nil t nil "-c"
+                         "import sys, sqlparse; print(sqlparse.format(sys.stdin.read(), reindent=True))")
+    (buffer-string)))
+
+(defun sqlformat-string (input-string)
+  "Run sqlformat on a string; returning a string."
+  (with-temp-buffer
+    (call-process-region input-string nil
+                         "sqlformat" nil t nil "-")
+    (buffer-string)))
+
+(defun pgformat-string (input-string)
+  "Run sqlformat on a string; returning a string."
+  (with-temp-buffer
+    (call-process-region input-string nil
+                         "pg_format" nil t nil "-")
+    (buffer-string)))
+
+(defun format-surrounding-sql-statement ()
+  "If in a triple-quoted string, run the string through an SQL formatter and replace
+the contents."
+  (interactive)
+  (let ((beg (python-syntax-context 'string))
+        (indent 2)
+        ;(formatter 'sqlparse-string)  ;; Best, sometimes fails
+        ;(formatter 'sqlformat-string) ;; Worse
+        (formatter 'pgformat-string)  ;; Verbose, sometimes fails
+        )
+    (when beg
+      (progn ;save-excursion
+        (re-search-forward "\\(\"\"\"\\|'''\\)")
+        (backward-char 3)
+        (let* ((rbeg (+ 3 beg))
+               (rend (point))
+               ;; Remove backslashes from the input text.
+               (input-text (replace-regexp-in-string
+                            "\\\\" "" (buffer-substring rbeg rend)))
+               ;; Run the formatter.
+               (formatted-statement
+                (apply formatter (list input-text))))
+          ;; Note: don't delete-region so we have it in the kill-ring.
+          (kill-region rbeg rend)
+          (newline-and-indent 2)
+          (previous-line)
+          (indent-for-tab-command)
+          (let ((col (+ indent (current-column))))
+            (beginning-of-line)
+            (let ((nbeg (point)))
+              ;; Insert the newly formatted region.
+              (insert (string-trim formatted-statement "\n"))
+              (indent-rigidly nbeg (point) col))
+            ))))))
+
+
+;; Uses pg_format, sqlfluff, sqlformat.
+(when (require 'sqlformat nil t)
+  (setq sqlformat-command 'pgformatter)
+  (setq sqlformat-args '("-s2" "-g"))
+
+  ;;(setq sqlformat-command 'sqlfluff)
+
+  ;(define-key sql-mode-map (kbd "C-c C-f") 'sqlformat)
+  )
+
+
 
 ; (setq sql-postgres-options '("-P" "pager=off" "-p" "5433"))
 
@@ -6439,11 +6528,12 @@ mode, for instance, if you're editing lisp, this will call
 ;;       (insert "\n")
 ;;       )))
 
+;; ;; Add a key binding that can pretty-format an SQL statement in any language.
+;; (when (require 'sql-transform nil t)
+;;   (define-key* ctl-x-map [(meta q)] 'sql-rewrite))
 
-;; Add a key binding that can pretty-format an SQL statement in any language.
-(when (require 'sql-transform nil t)
-  (define-key* ctl-x-map [(meta q)] 'sql-rewrite))
 
+(define-key* ctl-x-map [(shift s)] 'format-surrounding-sql-statement)
 
 
 ;;------------------------------------------------------------------------------
