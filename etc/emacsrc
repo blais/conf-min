@@ -4395,16 +4395,24 @@ rubout only the last word in the capword."
 ;; This stores the X selection in the kill-ring before you change it, if it is
 ;; set.
 
-;; Monkey-patching.
-(defadvice kill-new (before auto-paste-to-kill-ring activate)
-  (let ((paste (and interprogram-paste-function
-                    (funcall interprogram-paste-function))))
-    ;; Note: some of this inspired from current-kill.
-    (when paste
-      (let ((interprogram-cut-function nil)
-            (interprogram-paste-function nil))
-        (kill-new paste)
-        ))))
+;; None of the solutions below will work from the console, and I'm now a tmux
+;; user, so I really need xclip. Make sure you have the 'xclip' program
+;; installed as well
+(if (require xclip nil t)
+    (xclip-mode 1))
+
+
+;; ;; Monkey-patching.
+;; (defadvice kill-new (before auto-paste-to-kill-ring activate)
+;;   (let ((paste (and interprogram-paste-function
+;;                     (funcall interprogram-paste-function))))
+;;     ;; Note: some of this inspired from current-kill.
+;;     (when paste
+;;       (let ((interprogram-cut-function nil)
+;;             (interprogram-paste-function nil))
+;;         (kill-new paste)
+;;         ))))
+
 
 ;;      ;; Also set register 'x' with this value for direct access.
 ;;      ;; This is optional.

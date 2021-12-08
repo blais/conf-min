@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Compare difference summaries between CSV files.
+"""
+
+import argparse
+import logging
+
+import petl
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser.add_argument('left_filename', help='Left filename')
+    parser.add_argument('right_filename', help='Left filename')
+    args = parser.parse_args()
+
+    # Read the data in memory.
+    left = petl.fromcsv(args.left_filename)
+    right = petl.fromcsv(args.right_filename)
+
+    # Check columns overlap.
+    left_cols = left.fieldnames()
+    right_cols = right.fieldnames()
+    common_cols = sorted(set(left_cols) & set(right_cols))
+    left_only_cols = sorted(set(left_cols) - set(common_cols))
+    right_only_cols = sorted(set(right_cols) - set(common_cols))
+    if not common_cols:
+        raise ValueError("No common fields between the two files.")
+    if left_only_cols:
+        print(f"Ignored left columns: {left_only_cols}")
+    if right_only_cols:
+        print(f"Ignored right columns: {right_only_cols}")
+    if left_only_cols or right_only_cols:
+        print("Using common commons: {}".format(common_cols))
+
+    left_common = left.cut(common_cols)
+    right_common = right.cut(common_cols)
+
+    # Check data overlap only for common columns.
+    left_tuples = left.records()
+    right_tuples = right.records()
+
+    left_set = set(left_tuples)
+    right_set = set(right_tuples)
+    num_dup_rows = left.nrows() - len(left_set)
+    if num_dup_rows > 0:
+        raise ValueError(f"{num_dup_row} left rows not unique.")
+    num_dup_rows = right.nrows() - len(right_set)
+    if num_dup_rows > 0:
+        raise ValueError(f"{num_dup_row} right rows not unique.")
+
+    deleted_rows = left_set - right_set
+    inserted_rows = right_set - left_set
+    common_rows = left_set & right_set
+    print("Common:   {:10d}".format(len(common_rows)))
+    print("Deleted:  {:10d}".format(len(deleted_rows)))
+    print("Inserted: {:10d}".format(len(inserted_rows)))
+
+
+if __name__ == '__main__':
+    main()
