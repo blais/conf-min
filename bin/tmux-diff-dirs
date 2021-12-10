@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Diff two directories by calling tmux-diff repeatedly.
+"""Diff two directories by calling emacs-diff repeatedly.
 
 This can be used as a command for Mercurial.
 """

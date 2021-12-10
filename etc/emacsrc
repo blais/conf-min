@@ -1256,11 +1256,11 @@ prefix argument is negative, copy that many lines before the current line."
 ;; Yank the X clipboard (uses an external program: pcb).
 ;; This is useful in console mode, where there is on X accessible.
 
-(defun clipboard-yank-external ()
+(defun yank-tmux-buffer ()
   (interactive)
-  (shell-command "pcb" t))
+  (shell-command "tmux show-buffer" t))
 
-(global-set-key* [(control c)(control y)] 'clipboard-yank-external)
+(global-set-key* [(control c)(control y)] 'yank-tmux-buffer)
 
 
 ;;------------------------------------------------------------------------------
@@ -4398,7 +4398,7 @@ rubout only the last word in the capword."
 ;; None of the solutions below will work from the console, and I'm now a tmux
 ;; user, so I really need xclip. Make sure you have the 'xclip' program
 ;; installed as well
-(if (require xclip nil t)
+(if (require 'xclip nil t)
     (xclip-mode 1))
 
 
@@ -6502,6 +6502,8 @@ the contents."
               (indent-rigidly nbeg (point) col))
             ))))))
 
+(define-key* ctl-x-map [(shift s)] 'format-surrounding-sql-statement)
+
 
 ;; Uses pg_format, sqlfluff, sqlformat.
 (when (require 'sqlformat nil t)
@@ -6541,7 +6543,6 @@ the contents."
 ;;   (define-key* ctl-x-map [(meta q)] 'sql-rewrite))
 
 
-(define-key* ctl-x-map [(shift s)] 'format-surrounding-sql-statement)
 
 
 ;;------------------------------------------------------------------------------
