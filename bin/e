@@ -1,5 +1,4 @@
 #!/bin/bash
-#
 # Call emacsclient for the current tmux session. We're assuming that there is at
 # least one emacs server running in each tmux session, that has been started
 # with name "serverX", where X is the tmux session number, and we want to direct
