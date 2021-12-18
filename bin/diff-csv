@@ -26,8 +26,7 @@ def read_file(filename: str, key: Optional[str]) -> Tuple[petl.Table, List[str]]
     indices = [index for index, col in enumerate(header) if not col]
     columns = [col for col in header if col]
     table = table.cutout(*indices)
-    if key:
-        table = table.sort(key)
+    table = table.sort(key)
     return table, columns
 
 

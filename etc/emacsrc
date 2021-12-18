@@ -6110,6 +6110,9 @@ and load it in a buffer."
 			nil "^`" nil)
 		       ()) nil nil ))))
 
+;; Avoid the empty linea the bottom of docstrings after fill.
+(setq python-fill-docstring-style 'pep-257-nn)
+
 ;; (defun python-fill-paragraph ()
 ;;   "Fill paragraph normally, except in the case where the cursor
 ;;   is inside a multiline string, in which case we first isolate
@@ -6973,7 +6976,7 @@ with all the lines between mark + (mark - point)."
                                  1 font-lock-warning-face t))))
 
 (dolist (hook '(c++-mode-hook python-mode-hook))
-  (add-hook hook '(lambda () (font-lock-setup-width-warning 92))))
+  (add-hook hook '(lambda () (font-lock-setup-width-warning 88))))
 
 
 ;;------------------------------------------------------------------------------
