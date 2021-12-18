@@ -25,8 +25,6 @@
 ;; TODO: remove all personal identification from this file (esp. email section) -> conf-home
 ;; TODO: clean up new overrides
 
-(when (not (equal (getenv "SITE") "home"))
-
 (defvar home (getenv "HOME"))
 
 ;; Adjust default startup directory on platforms without a HOME.
@@ -2756,8 +2754,11 @@ the current buffer's directory."
 
 
 ;; version control: Git
-(when (add-first-found-to-load-path (concat home "/src/magit"))
+(when (require 'magit nil t)
   (autoload 'magit-status "magit" "Mode to interact with Git." t)
+
+
+
   )
 
 
@@ -2825,6 +2826,65 @@ the current buffer's directory."
 (define-key* ctl-x-map [(_)] 'user-diff-kill-ring)
 (define-key* ctl-x-r-map [(_)] 'user-diff-registers)
 
+
+;;------------------------------------------------------------------------------
+;; vdiff
+
+(require 'vdiff)
+(define-key vdiff-mode-map (kbd "C-c") vdiff-mode-prefix-map)
+
+;; ;; Whether to lock scrolling by default when starting vdiff
+;; (setq vdiff-lock-scrolling t)
+;;
+;; ;; diff program/algorithm to use. Allows choice of diff or git diff along with
+;; ;; the various algorithms provided by these commands. See
+;; ;; `vdiff-diff-algorithms' for the associated command line arguments.
+;; (setq vdiff-diff-algorithm 'diff)
+;;
+;; ;; diff3 command to use. Specify as a list where the car is the command to use
+;; ;; and the remaining elements are the arguments to the command.
+;; (setq vdiff-diff3-command '("diff3"))
+;;
+;; ;; Don't use folding in vdiff buffers if non-nil.
+;; (setq vdiff-disable-folding nil)
+;;
+;; ;; Unchanged lines to leave unfolded around a fold
+;; (setq vdiff-fold-padding 6)
+;;
+;; ;; Minimum number of lines to fold
+;; (setq vdiff-min-fold-size 4)
+;;
+;; ;; If non-nil, allow closing new folds around point after updates.
+;; (setq vdiff-may-close-fold-on-point t)
+;;
+;; ;; Function that returns the string printed for a closed fold. The arguments
+;; ;; passed are the number of lines folded, the text on the first line, and the
+;; ;; width of the buffer.
+;; (setq vdiff-fold-string-function 'vdiff-fold-string-default)
+;;
+;; ;; Default syntax table class code to use for identifying "words" in
+;; ;; `vdiff-refine-this-change'. Some useful options are
+;; ;;
+;; ;; "w"   (default) words
+;; ;; "w_"  symbols (words plus symbol constituents)
+;; ;;
+;; ;; For more information see
+;; ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Syntax-Class-Table.html
+;; (setq vdiff-default-refinement-syntax-code "w")
+;;
+;; ;; If non-nil, automatically refine all hunks.
+;; (setq vdiff-auto-refine nil)
+;;
+;; ;; How to represent subtractions (i.e., deleted lines). The
+;; ;; default is full which means add the same number of (fake) lines
+;; ;; as those that were removed. The choice single means add only one
+;; ;; fake line. The choice fringe means don't add lines but do
+;; ;; indicate the subtraction location in the fringe.
+;; (setq vdiff-subtraction-style 'full)
+;;
+;; ;; Character to use for filling subtraction lines. See also
+;; ;; `vdiff-subtraction-style'.
+;; (setq vdiff-subtraction-fill-char ?-)
 
 
 ;;------------------------------------------------------------------------------
@@ -3516,6 +3576,16 @@ Otherwise, pop the mark and yank the contents of the region."
  ((eq user-switch-buffer-command 'ido)
   (require 'ido)
   (ido-mode t)
+
+  ;; Make kill-buffer instant, except with prefix (to match the 2021 work
+  ;; environment).
+  (defun kill-this-buffer-maybe (orig &rest args)
+    "Read From: address interactively."
+    (interactive)
+    (if current-prefix-arg
+        (apply orig args)
+      (call-interactively 'kill-this-buffer)))
+  (advice-add 'ido-kill-buffer :around #'kill-this-buffer-maybe)
 
   ;; Ignore case by default.
   (setq ido-case-fold t)
@@ -6110,7 +6180,7 @@ and load it in a buffer."
 			nil "^`" nil)
 		       ()) nil nil ))))
 
-;; Avoid the empty linea the bottom of docstrings after fill.
+;; Avoid the empty lines the bottom of docstrings after fill.
 (setq python-fill-docstring-style 'pep-257-nn)
 
 ;; (defun python-fill-paragraph ()
@@ -7092,7 +7162,8 @@ kill-ring.  With prefix arg, compare the last three."
 ;;------------------------------------------------------------------------------
 ;; Support for browsing the kill-ring
 
-(require 'browse-kill-ring nil t)
+(when (require 'browse-kill-ring nil t)
+  (require 'browse-kill-ring+))
 
 
 ;;------------------------------------------------------------------------------
@@ -8337,5 +8408,3 @@ With prefix ARG non-nil, insert the result at the end of region."
 ;;; (setq comint-buffer-maximum-size 1024)
 ;;; (add-hook 'comint-output-filter-functions
 ;;;           'comint-truncate-buffer)
-
-)
