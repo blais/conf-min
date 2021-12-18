@@ -1,0 +1,10 @@
+#!/bin/bash
+# Diff two files in the console using emacs-vdiff.
+THISDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# TODO: Support 3 files automatically.
+A=$1
+B=$2
+#C=$3
+emacs --no-window-system --no-init-file --no-site-file --no-splash \
+      --load ${THISDIR}/emacs-vdiff.el \
+      --eval "(run-vdiff-files \"$A\" \"$B\")"
