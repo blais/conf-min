@@ -321,13 +321,6 @@ found in."
 ;; (setq ring-bell-function nil)
 ;; (ding)
 
-
-;;------------------------------------------------------------------------------
-;; Abbrevs should always be invoked explicitly.
-
-(setq-default abbrev-mode -1)
-
-
 ;;------------------------------------------------------------------------------
 ;; Remove bindings which aren't accessible from a real console.
 
