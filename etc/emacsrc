@@ -6055,19 +6055,13 @@ to R, put them in the variable `inferior-R-args'." t)
 
 ;; (require 'pycomplete)
 
-;;(setq py-indent-offset 3)  ;; 4 is the standard in Python.
+;;(setq py-indent-offset 2)
 
 (add-to-list 'auto-mode-alist (cons "\\.py$" 'python-mode))
 (add-to-list 'auto-mode-alist (cons "SCons\\(truct\\|cript\\)$" 'python-mode))
 (add-to-list 'interpreter-mode-alist '("python" . python-mode))
 (add-to-list 'interpreter-mode-alist '("python1" . python-mode))
 (add-to-list 'interpreter-mode-alist '("python2" . python-mode))
-(add-to-list 'interpreter-mode-alist '("python2.3" . python-mode))
-(add-to-list 'interpreter-mode-alist '("python2.4" . python-mode))
-(add-to-list 'interpreter-mode-alist '("python2.5" . python-mode))
-(add-to-list 'interpreter-mode-alist '("python2.6" . python-mode))
-(add-to-list 'interpreter-mode-alist '("python2.7" . python-mode))
-(add-to-list 'interpreter-mode-alist '("python3.0" . python-mode))
 (add-to-list 'interpreter-mode-alist '("python3" . python-mode))
 
 (progn
@@ -6217,6 +6211,10 @@ and load it in a buffer."
 ;; Removed on 2015-11-08 to let C-c r be used by compile-register.
 ;; (when (require 'parenregu nil t)
 ;;   (define-key* python-mode-map [(control c)(r)] 'paren-regularizer) )
+
+;; For Python black support.
+;; Note: We prefer python-black.el over blacken.el (more better).
+(require 'python-black nil t)
 
 
 ;;------------------------------------------------------------------------------
@@ -7612,9 +7610,23 @@ process. Attempts to get rid of the buffer afterwards."
 ;;------------------------------------------------------------------------------
 ;; Jupyter notebooks (via emacs-jupyter)
 
-(add-to-list 'load-path "/home/blais/src/github/nnicandro/emacs-jupyter")
-(require 'jupyter nil t)
+;; Support for Jupyter notebooks best works with emacs-juypter + code-cells +
+;; percent mode for Jupytext notebooks. I'm adding a few bindings below for
+;; invoking code-cells functions (don't bother using their mode).
 
+(defun code-cells-eval-and-forward ()
+  (interactive)
+  (call-interactively 'code-cells-eval)
+  (code-cells-forward-cell 1))
+
+(when (require 'code-cells nil t)
+  (define-key* python-mode-map [(control c)(control p)] 'code-cells-backward-cell)
+  (define-key* python-mode-map [(control c)(control n)] 'code-cells-forward-cell)
+  (define-key* python-mode-map [(control meta m)] 'code-cells-eval)
+  (define-key* python-mode-map [(shift meta m)] 'code-cells-eval-and-forward)
+  )
+
+(define-abbrev python-mode-abbrev-table "ce" "# %%")
 
 
 
