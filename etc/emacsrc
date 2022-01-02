@@ -7614,18 +7614,83 @@ process. Attempts to get rid of the buffer afterwards."
 ;; percent mode for Jupytext notebooks. I'm adding a few bindings below for
 ;; invoking code-cells functions (don't bother using their mode).
 
+(require 'code-cells)
+(require 'jupyter)
+
 (defun code-cells-eval-and-forward ()
   (interactive)
   (call-interactively 'code-cells-eval)
   (code-cells-forward-cell 1))
 
-(when (require 'code-cells nil t)
+(defun code-cells-insert-new ()
+  (interactive)
+  (insert "# %%\n"))
+
+(defun jupyter-get-latest-connection-file ()
+  (caar (cl-sort
+         (directory-files-and-attributes "~/.local/share/jupyter/runtime"
+                                         t ".*\.json$")
+         #'(lambda (x y) (time-less-p y x))
+         :key #'(lambda (x) (nth 6 x)))))
+
+(defun jupyter-connect-repl-latest ()
+  "Automatically find the latest kernel that was started and connect to it."
+  (interactive)
+  (let* ((latest-connection-file (jupyter-get-latest-connection-file))
+         (file-dir (directory-file-name (file-name-directory (buffer-file-name))))
+         (py-chdir (format "import os.path; os.chdir(\"%s\")" file-dir)))
+    (message "Connecting via %s" latest-connection-file)
+    (jupyter-connect-repl latest-connection-file nil t nil t)
+    (message "Setting kernel CWD to %s" py-chdir)
+    (jupyter-eval-string py-chdir)))
+
+(defun jupyter-chdir-to-buffer ()
+  (interactive)
+  (let* ((file-dir (directory-file-name (file-name-directory (buffer-file-name))))
+         (py-chdir (format "import os.path; os.chdir(\"%s\")" file-dir)))
+    (message "Setting kernel CWD to %s" py-chdir)
+    (jupyter-eval-string py-chdir)))
+
+(defun jupyter-render-and-view-dataframe (beg end)
+  (interactive "r")
+  (let ((py-render (format "%s.to_csv('/tmp/dataframe.csv')"
+                           (buffer-substring beg end))))
+    (jupyter-eval-string py-render)
+    (call-process "tmux" nil nil nil "new-window" "vd -f csv '/tmp/dataframe.csv'")
+    ))
+
+(defun jupyter-print-dataframe (beg end)
+  (interactive "r")
+  (let ((py-render (format "print(%s.to_string())" (buffer-substring beg end))))
+    (jupyter-eval-string py-render)
+    ))
+
+(defun jupyter-reload-thing-at-point ()
+  (interactive)
+  (let ((module (thing-at-point 'symbol)))
+    (message "Reloading module: %s" module)
+    (jupyter-eval-string (format "import importlib; importlib.reload(%s)"
+                                 module))))
+
+(defun jupyter-eval-thing-at-point ()
+  (interactive)
+  (let ((expr (thing-at-point 'symbol)))
+    (jupyter-eval-string expr)))
+
+(progn
+  (define-key* python-mode-map [(control c)(@)] 'jupyter-connect-repl-latest)
+  (define-key* python-mode-map [(control c)(\!)] 'jupyter-repl-restart-kernel)
   (define-key* python-mode-map [(control c)(control p)] 'code-cells-backward-cell)
   (define-key* python-mode-map [(control c)(control n)] 'code-cells-forward-cell)
   (define-key* python-mode-map [(control meta m)] 'code-cells-eval)
   (define-key* python-mode-map [(shift meta m)] 'code-cells-eval-and-forward)
+  (define-key* python-mode-map [(control c)(n)] 'code-cells-insert-new)
+  (define-key* python-mode-map [(control c)(n)] 'code-cells-insert-new)
+  (define-key* python-mode-map [(control c)(\&)] 'jupyter-render-and-view-dataframe)
+  (define-key* python-mode-map [(control c)(p)] 'jupyter-print-dataframe)
+  (define-key* python-mode-map [(control c)(r)] 'jupyter-reload-thing-at-point)
+  (define-key* python-mode-map [(control c)(e)] 'jupyter-eval-thing-at-point)
   )
-
 (define-abbrev python-mode-abbrev-table "ce" "# %%")
 
 
