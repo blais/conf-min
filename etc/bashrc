@@ -19,3 +19,6 @@ alias k1='kill %1'
 alias k2='kill %2'
 alias k3='kill %3'
 alias ka='killall'
+
+# Various funtions.
+source "${BASH_SOURCE%/*}/cdrep.sh"
