@@ -7653,6 +7653,12 @@ process. Attempts to get rid of the buffer afterwards."
     (message "Setting kernel CWD to %s" py-chdir)
     (jupyter-eval-string py-chdir)))
 
+(defun jupyter-print-help (beg end)
+  (interactive "r")
+  (let ((py-render (format "help(%s)" (buffer-substring beg end))))
+    (jupyter-eval-string py-render)
+    ))
+
 (defun jupyter-render-and-view-dataframe (beg end)
   (interactive "r")
   (let ((py-render (format "%s.to_csv('/tmp/dataframe.csv')"
@@ -7663,9 +7669,11 @@ process. Attempts to get rid of the buffer afterwards."
 
 (defun jupyter-print-dataframe (beg end)
   (interactive "r")
-  (let ((py-render (format "print(%s.to_string())" (buffer-substring beg end))))
-    (jupyter-eval-string py-render)
-    ))
+  (jupyter-eval-string (format "print((%s.to_string()))" (buffer-substring beg end))))
+
+(defun jupyter-print-shape (beg end)
+  (interactive "r")
+  (jupyter-eval-string (format "print((%s.shape))" (buffer-substring beg end))))
 
 (defun jupyter-reload-thing-at-point ()
   (interactive)
@@ -7679,6 +7687,40 @@ process. Attempts to get rid of the buffer afterwards."
   (let ((expr (thing-at-point 'symbol)))
     (jupyter-eval-string expr)))
 
+
+(defun jupyter-window-configuration ()
+  "Set the window configuration to something reasonable."
+  (interactive)
+  (let ((win1 (window-buffer (nth 0 (window-list-stable))))
+        (win2 (window-buffer (nth 1 (window-list-stable)))))
+
+    (delete-other-windows)
+    (split-window nil nil 'right)
+    (split-window nil nil 'right)
+    (split-window nil nil 'right)
+
+    (select-window (nth 3 (window-list-stable)))
+    (split-window nil nil 'below)
+
+    (select-window (nth 2 (window-list-stable)))
+    (split-window nil nil 'below)
+
+    (balance-windows)
+    (set-window-buffer (nth 0 (window-list-stable)) win1)
+    (set-window-buffer (nth 1 (window-list-stable)) win2)
+
+
+    (dolist (winbuf '((2 "*jupyter-result*")
+                      (3 "*jupyter-output*")
+                      (4 "*jupyter-error*")
+                      (5 "*jupyter-traceback*")
+                      ;;"*jupyter-display*"
+                      ;;"*jupyter-repl*"
+                      ))
+      (set-window-buffer (nth (car winbuf) (window-list-stable)) (cadr winbuf)))
+    ))
+
+
 (progn
   (define-key* python-mode-map [(control c)(@)] 'jupyter-connect-repl-latest)
   (define-key* python-mode-map [(control c)(\!)] 'jupyter-repl-restart-kernel)
@@ -7689,11 +7731,30 @@ process. Attempts to get rid of the buffer afterwards."
   (define-key* python-mode-map [(control c)(n)] 'code-cells-insert-new)
   (define-key* python-mode-map [(control c)(n)] 'code-cells-insert-new)
   (define-key* python-mode-map [(control c)(\&)] 'jupyter-render-and-view-dataframe)
+  (define-key* python-mode-map [(control c)(h)] 'jupyter-print-help)
   (define-key* python-mode-map [(control c)(p)] 'jupyter-print-dataframe)
+  (define-key* python-mode-map [(control c)(y)] 'jupyter-print-shape)
   (define-key* python-mode-map [(control c)(r)] 'jupyter-reload-thing-at-point)
   (define-key* python-mode-map [(control c)(e)] 'jupyter-eval-thing-at-point)
+  (define-key* python-mode-map [(control c)(i)] 'jupyter-window-configuration)
   )
 (define-abbrev python-mode-abbrev-table "ce" "# %%")
+
+
+;; Clear all the display buffers before evaluating anything.
+(defun reset-jupyter-display-buffers (orig &rest args)
+  (jupyter-with-display-buffer "output" 'reset
+    (jupyter-with-display-buffer "result" 'reset
+      (jupyter-with-display-buffer "error" 'reset
+        (jupyter-with-display-buffer "traceback" 'reset
+          (jupyter-with-display-buffer "display" 'reset
+            ))))))
+(advice-add 'jupyter-eval-string :before #'reset-jupyter-display-buffers)
+;(advice-add 'jupyter-eval-line-or-region :before #'reset-jupyter-display-buffers)
+
+;; Never display evaluation results in the minibuffer. This is set to 10 by
+;; default.
+(setq jupyter-eval-short-result-max-lines -1)
 
 
 ;; From https://sqrtminusone.xyz/posts/2021-05-01-org-python/
