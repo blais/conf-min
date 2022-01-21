@@ -1,5 +1,9 @@
 #!/bin/bash
 # Run a single pylint analysis.
+#
+# Copyright (C) 2021-2022 Martin Blais. All Rights Reserved.
+# Martin Blais <blais@furius.ca>
+
 MSG=$1
 shift 1
 python3 -m pylint -d W -d E -d C -e "$MSG" $@

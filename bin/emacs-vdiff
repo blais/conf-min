@@ -1,5 +1,9 @@
 #!/bin/bash
 # Diff two files in the console using emacs-vdiff.
+#
+# Copyright (C) 2021-2022 Martin Blais. All Rights Reserved.
+# Martin Blais <blais@furius.ca>
+
 THISDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # TODO: Support 3 files automatically.
 A=$1

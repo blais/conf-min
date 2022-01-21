@@ -12,6 +12,9 @@
 ;; C = output
 ;; Ancestor = base/ancestor
 ;;
+;; Copyright (C) 2016-2022 Martin Blais. All Rights Reserved.
+;; Martin Blais <blais@furius.ca>
+;;
 ;; FIXME: TODO
 ;; - I want a function to copy the ancestor to C, bound to 'r'.
 ;; - Can it render diffs in the non-current region?
