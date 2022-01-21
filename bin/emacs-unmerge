@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Unmerge a conflicts file and invoke a 3-way diff.
+"""
+__copyright__ = "Copyright (C) 2021-2022 Martin Blais. All Rights Reserved."
+__author__ = "Martin Blais <blais@furius.ca>"
+
+import argparse
+import tempfile
+import subprocess
+from typing import Tuple
+
+
+def unmerge_file(
+    filename: str
+) -> Tuple[
+    tempfile.NamedTemporaryFile,
+    tempfile.NamedTemporaryFile,
+    tempfile.NamedTemporaryFile,
+]:
+    """Unmerge a file into three temporary files."""
+
+    file_old_tip = tempfile.NamedTemporaryFile(prefix="old-tip.")
+    file_old_base = tempfile.NamedTemporaryFile(prefix="old-base.")
+    file_new_base = tempfile.NamedTemporaryFile(prefix="new-base.")
+    files = file_old_tip, file_old_base, file_new_base
+    file_current = None
+    with open(filename, "rb") as f:
+        for line in f:
+            if line.startswith(b"<<<<<<< "):
+                file_current = file_old_tip
+            elif line.startswith(b"||||||| "):
+                file_current = file_old_base
+            elif line.startswith(b"======="):
+                file_current = file_new_base
+            elif line.startswith(b">>>>>>> "):
+                file_current = None
+            elif file_current is None:
+                for file_ in files:
+                    file_.write(line)
+            else:
+                file_current.write(line)
+    for file_ in files:
+        file_.flush()
+    return files
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser.add_argument("filename", help="Filename with conflicts to unmerge.")
+    args = parser.parse_args()
+
+    old_tip, old_base, new_base = unmerge_file(args.filename)
+
+    subprocess.call(
+        ["emacs-merge", old_tip.name, new_base.name, old_base.name, args.filename]
+    )
+
+
+if __name__ == "__main__":
+    main()
