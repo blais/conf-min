@@ -1,9 +1,10 @@
 ;; -*- mode: lisp-interaction; fill-column: 80 -*-
 ;; emacs-vdiff setup.
-
+;;
+;; Copyright (C) 2021-2022 Martin Blais. All Rights Reserved.
+;; Martin Blais <blais@furius.ca>
+;;
 ;; Make 'q' just quit emacs as well as vdiff.
-
-
 
 (require 'package)
 (package-initialize)

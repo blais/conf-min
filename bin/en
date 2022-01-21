@@ -1,4 +1,8 @@
 #!/bin/bash
+# Wrapper for non-blocking emacsclient under current tmux session.
+#
+# Copyright (C) 2014-2022 Martin Blais. All Rights Reserved.
+# Martin Blais <blais@furius.ca>
 #
 # Call emacsclient for the current tmux session. We're assuming that there is at
 # least one emacs server running in each tmux session, that has been started

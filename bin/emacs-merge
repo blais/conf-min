@@ -1,6 +1,9 @@
 #!/bin/bash
 # Diff-merge three files in the console.
 #
+# Copyright (C) 2018-2022 Martin Blais. All Rights Reserved.
+# Martin Blais <blais@furius.ca>
+#
 # Setup for Mercurial:
 # [ui]
 # merge = emacs-merge

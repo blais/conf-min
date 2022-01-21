@@ -3,6 +3,7 @@
 
 This can be used as a command for Mercurial.
 """
+__copyright__ = 'Copyright (C) 2018-2022 Martin Blais. All Rights Reserved.'
 __author__ = 'Martin Blais <blais@furius.ca>'
 
 from os import path

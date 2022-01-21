@@ -6,7 +6,7 @@ This script
 - Reorders the right file's columns to match that of the left file
 - Optioally sorts the rows by a given key
 """
-__copyright__ = 'Copyright (C) 2021 Martin Blais. All Rights Reserved.'
+__copyright__ = 'Copyright (C) 2021-2022 Martin Blais. All Rights Reserved.'
 __author__ = 'Martin Blais <blais@furius.ca>'
 
 import argparse

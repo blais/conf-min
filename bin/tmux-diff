@@ -1,4 +1,9 @@
 #!/bin/bash
+# Diff two files in a new tmux pane.
+#
+# Copyright (C) 2014-2022 Martin Blais. All Rights Reserved.
+# Martin Blais <blais@furius.ca>
+
 WINDOW="tmux-diff-$RANDOM"
 tmux new-window -n $WINDOW "emacs-diff $*"
 
