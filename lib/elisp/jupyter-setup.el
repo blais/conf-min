@@ -6,6 +6,11 @@
 ;; Support for Jupyter notebooks best works with emacs-juypter + code-cells +
 ;; percent mode for Jupytext notebooks. I'm adding a few bindings below for
 ;; invoking code-cells functions (don't bother using their mode).
+;;
+;; Install it like this:
+;;   (require 'jupyter-setup)
+;;   (jupyter-define-keybindings)
+;; No keybindings are installed by default.
 
 (require 'jupyter)
 
@@ -20,6 +25,8 @@
          #'(lambda (x y) (time-less-p y x))
          :key #'(lambda (x) (nth 6 x)))))
 
+;; Note: there's some useful improvements on this living at:
+;; https://sqrtminusone.xyz/posts/2021-05-01-org-python/
 (defun jupyter-connect-repl-latest ()
   "Automatically find the latest kernel that was started and connect to it."
   (interactive)
@@ -33,7 +40,7 @@
 
 
 ;;------------------------------------------------------------------------------
-;; Various utility functions.
+;; Various utility functions. See keybindings.
 
 (defun jupyter-chdir-to-buffer ()
   (interactive)
@@ -54,8 +61,9 @@
                            (buffer-substring beg end))))
     (jupyter-eval-string py-render)
     (call-process "tmux" nil nil nil "new-window" "vd -f csv '/tmp/dataframe.csv'")
+    ;; Note: Should probably delete the temp file.
     ))
-
+_
 (defun jupyter-print-dataframe (beg end)
   (interactive "r")
   (jupyter-eval-string (format "print((%s.to_string()))" (buffer-substring beg end))))
@@ -114,8 +122,8 @@
 
 
 ;;------------------------------------------------------------------------------
-;; Joining output buffers together.
-
+;; Merging output buffers together.
+;; Note: This is tricky.
 
 ;; Never display evaluation results in the minibuffer. This is set to 10 by
 ;; default.
@@ -208,62 +216,6 @@
 
   ;; Define an abbrev for cells.
   (define-abbrev python-mode-abbrev-table "ce" "# %%")
-  )
-
-
-;;------------------------------------------------------------------------------
-;; Setup picked up from the web, not enabled. Someo f the network functions can
-;; be useful here.
-
-;; From https://sqrtminusone.xyz/posts/2021-05-01-org-python/
-
-(unless
-
-    (defun my/jupyter-refresh-kernelspecs ()
-      "Refresh Jupyter kernelspecs"
-      (interactive)
-      (jupyter-available-kernelspecs t))
-
-  (defun my/get-open-ports ()
-    (mapcar
-     #'string-to-number
-     (split-string (shell-command-to-string "ss -tulpnH | awk '{print $5}' | sed -e 's/.*://'") "\n")))
-
-  (setq my/jupyter-runtime-folder (expand-file-name "~/.local/share/jupyter/runtime"))
-
-  (defun my/list-jupyter-kernel-files ()
-    (mapcar
-     (lambda (file) (cons (car file) (cdr (assq 'shell_port (json-read-file (car file))))))
-     (sort
-      (directory-files-and-attributes my/jupyter-runtime-folder t ".*kernel.*json$")
-      (lambda (x y) (not (time-less-p (nth 6 x) (nth 6 y)))))))
-
-  (defun my/select-jupyter-kernel ()
-    (let ((ports (my/get-open-ports))
-          (files (my/list-jupyter-kernel-files)))
-      (completing-read
-       "Jupyter kernels: "
-       (seq-filter
-        (lambda (file)
-          (member (cdr file) ports))
-        files))))
-
-  (defun my/insert-jupyter-kernel ()
-    "Insert a path to an active Jupyter kernel into the buffer"
-    (interactive)
-    (insert (my/select-jupyter-kernel)))
-
-  (defun my/jupyter-connect-repl ()
-    "Open emacs-jupyter REPL, connected to a Jupyter kernel"
-    (interactive)
-    (jupyter-connect-repl (my/select-jupyter-kernel) nil nil nil t))
-
-  (defun my/jupyter-qtconsole ()
-    "Open Jupyter QtConsole, connected to a Jupyter kernel"
-    (interactive)
-    (start-process "jupyter-qtconsole" nil "setsid" "jupyter" "qtconsole" "--existing"
-                   (file-name-nondirectory (my/select-jupyter-kernel))))
-
   )
 
 
