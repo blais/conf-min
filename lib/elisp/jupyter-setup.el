@@ -63,7 +63,7 @@
     (call-process "tmux" nil nil nil "new-window" "vd -f csv '/tmp/dataframe.csv'")
     ;; Note: Should probably delete the temp file.
     ))
-_
+
 (defun jupyter-print-dataframe (beg end)
   (interactive "r")
   (jupyter-eval-string (format "print((%s.to_string()))" (buffer-substring beg end))))
