@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Pops a huge button the size of the screen.
+
+This is usually used as part of a shell command to indicate the user the
+completion of a task, while he is working on something else.
+"""
+__author__ = "Martin Blais <blais@furius.ca>"
+
+import argparse
+import os
+import random
+import signal
+import subprocess
+
+
+def display_tmux(message: str):
+    window = "finc-{:10d}".format(random.randint(0, 1e10))
+    command = f"dialog --msgbox '{message}' 10 80"
+    subprocess.run(["tmux", "new-window", "-n", window, command])
+
+
+def display_graphical(message: str):
+    """Uses Qt to display big button."""
+
+    from PySide6.QtCore import QTimer, Qt
+    from PySide6.QtWidgets import QApplication, QPushButton
+    from PySide6.QtGui import QFont
+
+    mintime = 600  # msecs
+    killtime = 30000  # msecs
+
+    class BigButton(QPushButton):
+        def __init__(self, app):
+            QPushButton.__init__(self)
+            self.setWindowFlags(Qt.SplashScreen)
+
+            # Wait for 2 seconds before enabling quit on move events.
+            self.timer = QTimer(self)
+            self.timer.timeout.connect(self.enableMouseTracking)
+            self.timer.start(mintime)
+
+            # Use a long timer to kill itself in order to avoid blocking something
+            # if I'm not at the console and some commands are queue after it.
+            self.killtimer = QTimer(self)
+            self.killtimer.timeout.connect(app.quit)
+            self.killtimer.start(killtime)
+
+            self.app = app
+
+        def enableMouseTracking(self):
+            self.setMouseTracking(1)
+
+        def mouseMoveEvent(self, ev):
+            self.app.quit()
+
+        def keyPressEvent(self, ev):
+            ev.ignore()
+            self.app.quit()
+
+    # Forcing DISPLAY to localhost if it is not set.
+    if os.environ.get("DISPLAY") is None:
+        os.environ["DISPLAY"] = ":0.0"
+
+    # Show a screen-sized button
+    app = QApplication()
+    app.setStyle("motif")  # Select a style that is fast at drawing large windows!
+    font = QFont("Helvetica", 64, QFont.Bold)
+    app.setFont(font)
+
+    button = BigButton(app)
+    button.setText(message)
+    button.clicked.connect(app.quit)
+
+    # Allow the app to be interrupted once we enter the event loop.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    # Display
+    r = app.primaryScreen().geometry()
+    s = int(r.width() * 0.05)
+    r.adjust(s, s, -s, -s)
+    button.setGeometry(r)
+    button.show()
+
+    app.exec()
+
+
+def main():
+    default_message = "Task DONE in \n{}".format(os.getcwd())
+
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser.add_argument(
+        "-x",
+        "--graphical",
+        action="store_true",
+        help="Use Qt to display output instead of tmux.",
+    )
+    parser.add_argument(
+        "-m",
+        "--message",
+        action="store_true",
+        default=default_message,
+        help="Message to display. Default is $PWD.",
+    )
+
+    args = parser.parse_args()
+    display = display_graphical if args.graphical else display_tmux
+    display(args.message)
+
+
+if __name__ == "__main__":
+    main()
