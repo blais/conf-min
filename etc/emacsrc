@@ -1856,6 +1856,15 @@ repository of the file which invoked compilation."
   (repeatable-command-advice previous-error) )
 
 
+(defun compile-on-buffer-file (command)
+  "Run shell command giving it the buffer filename."
+  (interactive "MRun command on file: ")
+  (let ((compile-command (format "%s %s" command (buffer-file-name))))
+    (compile compile-command)))
+
+(global-set-key* [(control c)(shift c)] 'compile-on-buffer-file)
+
+
 (defun rename-compilation-buffer ()
   "Renames existing *compilation* buffer for new compilation job."
   (interactive)

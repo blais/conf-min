@@ -97,21 +97,21 @@
     (delete-other-windows)
     (split-window nil nil 'right)
     (split-window nil nil 'right)
-    (split-window nil nil 'right)
-
-    (select-window (nth 3 (window-list-stable)))
-    ;(split-window nil nil 'below)
+    ;(split-window nil nil 'right)
 
     (select-window (nth 2 (window-list-stable)))
+    ;(split-window nil nil 'below)
+
+    (select-window (nth 1 (window-list-stable)))
     (split-window nil nil 'below)
 
     (balance-windows)
     (set-window-buffer (nth 0 (window-list-stable)) win1)
-    (set-window-buffer (nth 1 (window-list-stable)) win2)
+    ;(set-window-buffer (nth 1 (window-list-stable)) win2)
 
-    (dolist (winbuf '((2 "result")
-                      (3 "error")
-                      (4 "output")
+    (dolist (winbuf '((1 "result")
+                      (2 "error")
+                      (3 "output")
                       ;;(5 "traceback")
                       ;;"display"
                       ;;"repl"
