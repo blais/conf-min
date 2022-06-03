@@ -1,0 +1,580 @@
+#!/usr/bin/env python3
+"""Command runner/laucher with big buttons.
+
+This program brings up a simple window with large buttons that execute commands
+specified in an ultra simple config file. It can be seen as a general purpose
+launcher for oft-used commands or programs.
+
+Most typically, the config file is the program itself, e.g. ::
+
+    #!/usr/bin/env bigbuts
+    demo: python $HOME/project/bin/run-project
+    debug: python $HOME/project/bin/run-project --debug --profile
+    chklog: tail -n 20 /var/log/project.log
+
+Or as defined as a shell function/macro::
+
+    function bbapache {
+       bigbuts <<EOF
+    restart: sudo /etc/init.d/apache2 restart
+    stop: sudo /etc/init.d/apache2 stop
+    start: sudo /etc/init.d/apache2 start
+    EOF
+    }
+
+You can also run it from a command-line, if you happen to need to repeat a
+single command a lot of times::
+
+ echo 'do it: sudo /etc/init.d/apache2 restart' | bigbuts
+
+Features:
+
+- Program output is intermingled with bigbuts output.
+
+- It remembers its location between runs automatically. The geometry is saved in
+  a file in the home directory of the user. (It automatically supports the
+  geometry for multiple instances.)
+
+- If you need to send an interrupt signal (SIGINT) to all the child processes,
+  type Ctrl-C in the bigbuts window. Type Ctrl-Alt-C to send a SIGKILL signal to
+  all the children.
+
+- You can rotate the buttons by pressing Ctrl-R.
+
+- Rolling the mouse wheel or typing TAB over the buttons generates some
+  whitespace in the output. This is useful to space out sections of large log
+  output when debugging.
+
+- If you kill bigbuts, the children will live on.
+
+- If you want to keep the output logs of the children process, you can specify
+  an output directory as an option and all the log files will be saved there,
+  per-process, under the PID name. This is useful if you're debugging and need
+  access to the logs later on.
+
+Note: This is an extremely helpful program, one which I have been using for
+years and which has evolved to become one of the most important casual tools in
+my toolbox. I run many instances of these on my desktop at all times. Also, I
+can't help laughing whenever I say its name around the office:  'Everyone needs
+bigbuts! We should have bigbuts on everyone's screen!'. Many co-workers have
+adopted it over the years.
+
+Enjoy! Send me an email if you are, like us, enjoying bigbuts.
+
+FUTURE IDEAS
+============
+- Store the list of processes per-button, and ^C should send the signals ouly to
+  those processes for which the mouse is over the given button.
+- Pressing 1, 2, 3 should produce some big separator on the output, i.e., placing
+  marks for reference and searching in tmux.
+- Make the geometry rotation automatic, infer it from the geometry of the
+  parent whenever the aspect ratio changes.
+- Run a terminal child with tmux that we control, creating windows in it for
+  each subprocess and switching to them when hovering over each button.
+"""
+
+__author__ = "Martin Blais <blais@furius.ca>"
+__original_version__ = "2007-10-18"
+__version__ = "2022-02-26"
+
+from functools import partial
+from os import path
+from typing import Any, Dict, List, Tuple, Union
+import argparse
+import logging
+import os
+import re
+import signal
+import string
+import subprocess
+import sys
+import types
+import json
+
+from PySide6.QtGui import QFont, QFontMetrics, QKeySequence, QAction
+from PySide6.QtCore import Qt, QRect, QTimer, QSize
+from PySide6.QtWidgets import QWidget, QPushButton, QApplication, QBoxLayout
+from PySide6.QtWidgets import QSizePolicy
+
+
+JSON = Dict[str, Union[str, float, int, "JSON"]]
+
+
+# When you press the right button, this many lines are inserted in the output as
+# a separator
+SPACING_LINES = 4
+
+
+# Maximum font pixel size to use.
+MAX_FONT_PIXEL_SIZE = 48
+
+
+# A geometry dict containing (x, y, width, height, direction) items.
+Geometry = JSON
+
+
+# Filename to store the cached geometries.
+GEOMETRY_CACHE_FILENAME = path.join(os.environ["HOME"], ".bigbuts")
+
+
+# Idle timer that allows SIGCHLD handlers to run. If greater than zero,
+# periodically release the GIL in order to allow the SIGCHLD handlers to run.
+IDLE_TIMER_MSECS = 500
+
+
+def read_geometry() -> Geometry:
+    """Read this script's geometry from a JSON cache."""
+    script = path.realpath(app.script_name)
+    geometries = {}
+    if path.exists(GEOMETRY_CACHE_FILENAME):
+        with open(GEOMETRY_CACHE_FILENAME, encoding="utf8") as infile:
+            geometries = json.load(infile)
+    return geometries.get(script, None)
+
+
+def write_geometry(geometry: Geometry):
+    """Write this script's geometry to a JSON cache."""
+    geometries = {}
+    if path.exists(GEOMETRY_CACHE_FILENAME):
+        with open(GEOMETRY_CACHE_FILENAME, encoding="utf8") as infile:
+            geometries = json.load(infile)
+    script = path.realpath(app.script_name)
+    geometries[script] = geometry
+    with open(GEOMETRY_CACHE_FILENAME, "w", encoding="utf8") as outfile:
+        json.dump(geometries, outfile)
+
+
+class BigButton(QPushButton):
+    """A large button which runs a command."""
+
+    def __init__(
+        self,
+        command: List[str],
+        log_dir: str,
+        child_processes: List[subprocess.Popen],
+        name: str,
+        parent: Any,
+    ):
+        QPushButton.__init__(self, name, parent)
+        self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.setMinimumSize(1, 1)
+        self.setFocusPolicy(Qt.StrongFocus)
+
+        self.name = name
+        self.command = command
+        self.log_dir = log_dir
+        self.child_processes = child_processes
+
+        self.clicked.connect(self.run_command)
+
+    def run_command(self):
+        """Run the command associated with this button."""
+        self.child_processes.append(spawn_child(self.command, self.log_dir))
+
+
+class MainWindow(QWidget):
+    """Simple main window which contains the big buttons."""
+
+    def __init__(self, child_processes: List[str], *posargs, **kwargs):
+        super().__init__(*posargs, **kwargs)
+        self.child_processes = child_processes
+
+        self.restoring_geometry = False
+
+        for sequence, callback in [
+            ((Qt.CTRL | Qt.Key_C,), self.interrupt_processes),
+            ((Qt.CTRL | Qt.ALT | Qt.Key_C,), self.kill_processes),
+            ((Qt.CTRL | Qt.Key_Q, Qt.CTRL | Qt.Key_Q), QApplication.instance().quit),
+            ((Qt.CTRL | Qt.Key_R,), self.rotate),
+            ((Qt.Key_Tab,), partial(space_output, num_lines=SPACING_LINES)),
+            ((Qt.CTRL | Qt.Key_D,), dump_config),
+        ]:
+            action = QAction(self)
+            action.setShortcut(QKeySequence(*sequence))
+            action.triggered.connect(callback)
+            self.addAction(action)
+
+    def interrupt_processes(self):
+        """Send an interrupt to all the children."""
+        logging.info("Interrupting all processes.")
+        send_signal(signal.SIGINT, self.child_processes)
+
+    def kill_processes(self):
+        """Kill all the children."""
+        logging.info("Killing all processes.")
+        send_signal(signal.SIGKILL, self.child_processes)
+
+    def wheelEvent(self, event):
+        space_output(num_lines=1)
+        event.accept()
+
+    def resizeEvent(self, event):
+        if not self.restoring_geometry:
+            write_geometry(self.get_geometry())
+        self.reset_fonts()
+        return super().resizeEvent(event)
+
+    def moveEvent(self, _):
+        if not self.restoring_geometry:
+            write_geometry(self.get_geometry())
+
+    def rotate(self):
+        "Rotate clock-wise."
+        transition = {
+            QBoxLayout.LeftToRight: QBoxLayout.TopToBottom,
+            QBoxLayout.TopToBottom: QBoxLayout.RightToLeft,
+            QBoxLayout.RightToLeft: QBoxLayout.BottomToTop,
+            QBoxLayout.BottomToTop: QBoxLayout.LeftToRight,
+        }
+
+        old_direction = self.layout().direction()
+        new_direction = QBoxLayout.Direction(transition[old_direction])
+        self.layout().setDirection(new_direction)
+        app.processEvents()
+        self.reset_fonts()
+        write_geometry(self.get_geometry())
+
+    def get_geometry(self):
+        "Return the current persistable geometry of the window."
+        g = self.geometry()
+        # Pack the geometry to JSON.
+        return {
+            "width": g.width(),
+            "height": g.height(),
+            "x": g.x(),
+            "y": g.y(),
+            "direction": self.layout().direction().name.decode("utf8"),
+        }
+
+    def set_geometry(self, geometry):
+        "Set the geometry of this window."
+
+        self.restoring_geometry = True
+
+        # Unpack the geometry from JSON.
+        width = geometry["width"]
+        height = geometry["height"]
+        x = geometry["x"]
+        y = geometry["y"]
+        direction = getattr(QBoxLayout.Direction, geometry["direction"])
+
+        # Move, resize and orient the window to its rightful place.
+        r = QRect(x, y, width, height)
+        if r != self.geometry():
+            self.setGeometry(r)
+        self.layout().setDirection(direction)
+
+        self.restoring_geometry = False
+
+    def reset_fonts(self):
+        "Set a font that fits the given button sizes."
+        afont = app.font()
+        pixel_size = get_largest_font_size(self.findChildren(BigButton), afont)
+        afont.setPixelSize(min(pixel_size, MAX_FONT_PIXEL_SIZE))
+        app.setFont(afont)
+
+
+def get_largest_font_size(widgets: List[QWidget], afont: QFont) -> int:
+    """Try to guess the largest font that can be accomomdated
+
+    Check all the widgets (all fonts should be the same size).
+    """
+    pixel_size = 100000
+    for child in widgets:
+        s = child.size()
+        ms = QSize(s.width() - 10, s.height() - 10)
+        font, _ = getfont(ms, child.text(), afont)
+        if font is not None:
+            pixel_size = min(pixel_size, font.pixelSize())
+    return pixel_size
+
+
+def getfont(size: int, text: str, protofont: QFont):
+    """Given a font family name and a rectangle, find a font that will fit the
+    given text within the rectangle. Note: this is reasonably fast, and
+    typically will iterate no more than 2-3 times.
+
+    'size' should be a QSize or a QRect, or an object that supports width() and
+    height()."""
+    pxsize = size.height()
+    font = QFont(protofont)
+    pxsize_prev = None
+    while pxsize > 1 and pxsize != pxsize_prev:
+        font.setPixelSize(pxsize)
+        fm = QFontMetrics(font)
+        r = fm.boundingRect(text)
+        if r.width() <= size.width():
+            return font, r
+        pxsize_prev = pxsize
+        pxsize *= size.width() / float(r.width())
+    return None, None
+
+
+def read_commands(filename: str) -> List[str]:
+    """Read the configuration file that describes the commands."""
+    empre = re.compile(r"^\s*$")
+    comre = re.compile("^#")
+    commands = []
+    try:
+        infile = (
+            sys.stdin if (filename is None or filename == "-") else open(filename, "r")
+        )
+        with infile as fobj:
+            for line in fobj:
+                line = line.strip()
+                if empre.match(line) or comre.match(line):
+                    continue
+                try:
+                    idx = line.find(":")
+                    if idx == -1:
+                        name = re.split("[ \t]", line)[0]
+                        cmd = line
+                    else:
+                        name = line[:idx].strip()
+                        cmd = line[idx + 1 :].strip()
+                    commands.append((name, cmd))
+                except ValueError:
+                    logging.error(
+                        "Error in config file; missing semicolon on line '%s'", line
+                    )
+    except IOError:
+        logging.exception("Error reading file '%s'", filename)
+        sys.exit(1)
+    return commands
+
+
+def create_gui(
+    commands: List[Tuple[str, List[str]]], log_dir: str, font_family: str
+) -> Tuple[QApplication, QWidget]:
+    "Create and display the GUI."
+
+    app = QApplication(sys.argv[0:1])
+    app.setApplicationName("Bigbuts")
+
+    # Set font prototype.
+    font = QFont()
+    font.setBold(True)
+    font.setFamily(font_family)
+    app.setFont(font)
+
+    # List of child processes. This list instance is shared all over.
+    app.child_processes = []
+
+    # Create main window
+    parent = MainWindow(app.child_processes)
+    parent.setWindowTitle("Bigbuts")
+    parent.setWindowIconText("Bigbuts")
+    parent.setObjectName("bigbuts")
+
+    # Create all the button widgets.
+    for name, command in commands:
+        _ = BigButton(command, log_dir, app.child_processes, name, parent)
+
+    layout = QBoxLayout(QBoxLayout.LeftToRight)
+    layout.setSpacing(2)
+    for button in parent.findChildren(BigButton):
+        layout.addWidget(button)
+    parent.setLayout(layout)
+
+    return app, parent
+
+
+def spawn_child(command: List[str], log_dir: str) -> subprocess.Popen:
+    """
+    Spawn a child process.
+    """
+
+    # Note: setpgid makes it so that the children outlive the bigbuts
+    # instance.
+    kwargs = {}
+    if log_dir:
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+
+    logging.info("Starting: '%s'", command)
+    pipe = subprocess.Popen(
+        command, shell=True, preexec_fn=lambda: os.setpgid(0, 0), **kwargs
+    )
+    logging.info("PID %s started", pipe.pid)
+
+    # Tee outputs to log files named by PID, if we specified a log directory.
+    if log_dir:
+        outfn = path.join(log_dir, f"{pipe.pid}.stdout")
+        _ = subprocess.Popen(("/usr/bin/tee", outfn), stdin=pipe.stdout)
+
+        errfn = path.join(log_dir, f"{pipe.pid}.stderr")
+        _ = subprocess.Popen(("/usr/bin/tee", errfn), stdin=pipe.stderr)
+
+    return pipe
+
+
+def space_output(num_lines: int):
+    """Insert blank links to space out the process output."""
+    sys.stdout.write("\n" * num_lines)
+
+
+def dump_config():
+    """Dump the configuration to stdout."""
+    print("," + "-" * 78)
+    print("#!/usr/bin/env bigbuts")
+    for name, cmd in app.commands:
+        print(name, ":", cmd)
+    print("`" + "-" * 78)
+
+
+def send_signal(sig: signal.Signals, child_processes: List[subprocess.Popen]):
+    """Send an interrupt all the running children."""
+    for child in list(child_processes):
+        try:
+            # Note: Try using Popen.send_signal() instead.
+            os.killpg(child.pid, int(sig))
+        except OSError:
+            logging.info("Could not interrupt process %s.", child.pid)
+        else:
+            logging.info("Sending %s to process %s.", sig.name, child.pid)
+    if sig == signal.SIGKILL:
+        child_processes[:] = []
+
+
+def sigchld_handler(unused_signo: int, unused_frame: types.FrameType):
+    "Handler for children that exit."
+    for child in list(app.child_processes):
+        code = child.poll()
+        if code is not None:
+            logging.info("PID %s exited: %s\n", child.pid, code)
+            app.child_processes.remove(child)
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse the arguments."""
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser.add_argument(
+        "filename",
+        nargs="?",
+        action="store",
+        help="Filename with bigbuts command definitions to run.",
+    )
+    parser.add_argument(
+        "-g",
+        "--ignore-geometry",
+        action="store_true",
+        help=(
+            "Ignore the previously saved geometry (ignore the size cache). The default "
+            "is to bring back the previous location and size of the window."
+        ),
+    )
+    parser.add_argument(
+        "-l",
+        "--log-directory",
+        action="store",
+        dest="log_dir",
+        metavar="DIRECTORY",
+        help=(
+            "Log the outputs of the children processes in the given directory instead "
+            "of stdout."
+        ),
+    )
+    parser.add_argument(
+        "-c",
+        "--console",
+        action="store_true",
+        help="Do not show buttons; run from the console instead.",
+    )
+    parser.add_argument(
+        "-F",
+        "--font-family",
+        action="store",
+        default="Helvetica",
+        help="Which font to use.",
+    )
+    return parser.parse_args()
+
+
+def run_console(commands: List[Tuple[str, List[str]]], log_dir: str):
+    """Run a cheap miniature version of bigbuts on the console.
+
+    This is in case graphics isn't available and you have an urgent need to run
+    existing bigbuts helpers definitions.
+    """
+    while True:
+        while True:
+            # Print out the list of choices.
+            chars = iter(string.digits[1:] + string.ascii_lowercase)
+            nextletter = lambda: next(chars)
+            choices = {}
+            print("Command:")
+            for name, command in commands:
+                letter = nextletter()
+                choices[letter] = command
+                print("%3s. %s " % (letter, name))
+
+            # Read the user's selection.
+            response = input()
+            if response == "":
+                continue
+            try:
+                command = choices[response]
+                break
+            except KeyError:
+                print("Invalid choice. Try again.")
+
+        if command is not None:
+            pipe = spawn_child(command, log_dir)
+            pipe.wait()
+
+
+# Global reference to application instance.
+app = None
+
+
+def main():
+    logging.basicConfig(
+        level=logging.INFO, format="-----(bigbuts) %(levelname)-8s: %(message)s"
+    )
+    args = parse_args()
+
+    # Create the logs output directory if needed.
+    if args.log_dir:
+        os.makedirs(args.log_dir, exist_ok=True)
+
+    # Read the configuration file and create the interface.
+    commands = read_commands(args.filename)
+
+    # Create a console application.
+    if args.console:
+        run_console(commands, args.log_dir)
+        return
+
+    # Allow the app to be interrupted once we enter the event loop.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    # Handle when a child dies.
+    signal.signal(signal.SIGCHLD, sigchld_handler)
+
+    # Create a GUI application.
+    global app
+    app, parent = create_gui(commands, args.log_dir, args.font_family)
+    app.commands = commands
+
+    # Save the name of the script itself as a global.
+    app.script_name = args.filename or __file__
+
+    # Restore the previous size of the window and show it.
+    if not args.ignore_geometry:
+        geometry = read_geometry()
+        if geometry:
+            parent.set_geometry(geometry)
+    parent.show()
+
+    # Setup a bogus idle timer just to release the GIL periodically,
+    # allowing the SIGCHLD handler to actually run when there are no events.
+    if IDLE_TIMER_MSECS:
+        app.idle_timer = QTimer()
+        app.idle_timer.timeout.connect(lambda: None)
+        app.idle_timer.start(IDLE_TIMER_MSECS)
+
+    app.exec()
+
+
+if __name__ == "__main__":
+    main()
