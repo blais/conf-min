@@ -75,8 +75,12 @@ bind-key    r    resize-window -A
 ##set-window-option -g xterm-keys
 
 
-bind-key C-c run "tmux save-buffer - | xclip -i -sel clipboard"
-bind-key C-v run "tmux set-buffer "$(xclip -o -sel clipboard)"; tmux paste-buffer"
+# When the DISPLAY has changed, this makes pressing C-c freeze tmux.
+# See SO for an answer "tmux freezes when using ctrl-prfefix ctrl-y"
+#bind-key C-c run "tmux save-buffer - | xclip -i -sel clipboard"
+#bind-key C-v run "tmux set-buffer "$(xclip -o -sel clipboard)"; tmux paste-buffer"
+# bind y run-shell -b "tmux save-buffer - | xclip -selection clipboard &>/dfev/null; tmux display-message 'saved to clipboard'"
+#
 
 
 # c0-change-interval interval

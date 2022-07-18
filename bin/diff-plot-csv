@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Plot the differences between common data columns of N CSV files.
+"""
+__copyright__ = "Copyright (C) 2021-2022 Martin Blais. All Rights Reserved."
+__author__ = "Martin Blais <blais@furius.ca>"
+
+from matplotlib import pyplot
+from os import path
+from typing import Optional, Tuple, List
+import argparse
+import collections
+import functools
+import io
+import logging
+import numpy as np
+import os
+import pandas as pd
+import tempfile
+
+
+_PREFIX = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta>
+    <title>{title}</title>
+  </meta>
+</head>
+<body>
+"""
+
+_POSTFIX = """
+</body>
+</html>
+"""
+
+_SECTION = """
+<h1>{section}</h1>
+<div>
+<img src="{xy}"></img>
+<img src="{ky}"></img>
+</div>
+"""
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)-8s: %(message)s")
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+
+    parser.add_argument(
+        "-k", "--key", help="Key to join the dataframes on.", required=True
+    )
+
+    parser.add_argument("left", help="Left filename.")
+    parser.add_argument("right", help="Right filename.")
+
+    parser.add_argument(
+        "-o",
+        "--output",
+        action="store",
+        help=(
+            "Location of output directory. "
+            "Default is greatest common directory of all input files."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    # Figure out output directory.
+    output_dir = args.output or path.join(path.commonprefix([args.left, args.right]), "diff")
+    logging.info(f"Writing output to '{output_dir}'")
+
+    # Read in all the files.
+    filenames = [args.left, args.right]
+    dfs = [pd.read_csv(filename) for filename in filenames]
+
+    # Figure out the set of common columns we're going to plot.
+    column_map = collections.defaultdict(list)
+    for index, df in enumerate(dfs):
+        df_indexed = df.set_index(args.key)
+        for column in df.columns:
+            if column == args.key:
+                continue
+            column_map[column].append(df_indexed[column])
+
+    # Plot all the diffs.
+    os.makedirs(output_dir, exist_ok=True)
+    plot_filenames = []
+    for column, dfs in column_map.items():
+        if column == args.key:
+            continue
+
+        logging.info(f"Processing {column}")
+        if len(dfs) != 2:
+            logging.warning(f"Missing data for {column}")
+            continue
+        (left, right) = dfs
+
+        jdf = pd.concat([left, right], axis=1)
+        idf = jdf.convert_dtypes().select_dtypes(include=[np.number]).dropna()
+        if idf.empty:
+            logging.info(f"Skipping column {column}")
+            continue
+
+        if left.equals(right):
+            logging.info(f"Column {column} is identical.")
+            continue
+
+        print(idf)
+
+        # Plot a line diagram of the value over key.
+        figsize = [6, 6]
+        dpi = 150
+        fig, ax = pyplot.subplots()
+        fig.set_size_inches(*figsize)
+        fig.set_dpi(dpi)
+        ax.plot(
+            left.index.values,
+            left.values,
+            color="green",
+            marker=".",
+            linestyle="dashed",
+        )
+        ax.plot(
+            right.index.values,
+            right.values,
+            color="red",
+            marker=".",
+            linestyle="dashed",
+        )
+        jdf.plot(ax=ax)
+        filename_ky = path.join(output_dir, f"{column}-ky.png")
+        fig.tight_layout()
+        fig.savefig(filename_ky)
+        fig.clf()
+
+        # Scatter plot of the values against each other.
+        fig, ax = pyplot.subplots()
+        fig.set_size_inches(*figsize)
+        fig.set_dpi(dpi)
+        ax.scatter(left.values, right.values, color="blue", marker=".")
+        min_value = min(left.values.min(), right.values.min())
+        max_value = max(left.values.max(), right.values.max())
+        values = [min_value, max_value]
+        ax.plot(values, values, "--", alpha=0.4, linewidth=1)
+        filename_xy = path.join(output_dir, f"{column}-xy.png")
+        fig.tight_layout()
+        fig.savefig(filename_xy)
+        fig.clf()
+
+        plot_filenames.append((column, filename_ky, filename_xy))
+
+    index = path.join(output_dir, "index.html")
+    with open(index, "w") as f:
+        pr = functools.partial(print, file=f)
+        pr(_PREFIX.format(title=args.right))
+        for column, filename_ky, filename_xy in plot_filenames:
+            pr(
+                _SECTION.format(
+                    section=column,
+                    xy=path.basename(filename_xy),
+                    ky=path.basename(filename_ky),
+                )
+            )
+        pr(_POSTFIX)
+
+
+if __name__ == "__main__":
+    main()

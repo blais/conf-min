@@ -6225,7 +6225,7 @@ and load it in a buffer."
 ;; Note: We prefer python-black.el over blacken.el (more better).
 (require 'python-black nil t)
 
-(define-key* global-map [(control c)(shift b)] 'python-black-buffer)
+(define-key* python-mode-map [(control c)(shift b)] 'python-black-buffer)
 
 
 ;;------------------------------------------------------------------------------
