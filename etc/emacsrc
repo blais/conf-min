@@ -6228,6 +6228,10 @@ and load it in a buffer."
 (define-key* python-mode-map [(control c)(shift b)] 'python-black-buffer)
 
 
+;(flycheck-add-next-checker 'python-mypy '(t . python-pylint))
+
+
+
 ;;------------------------------------------------------------------------------
 ;; Bazel support.
 
