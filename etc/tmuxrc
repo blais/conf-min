@@ -75,9 +75,14 @@ bind-key    r    resize-window -A
 ##set-window-option -g xterm-keys
 
 
+#tmux set-environment -g DISPLAY localhost:12.0
+#for S in 0 1 2 3 ; do tmux set-environment -t $S DISPLAY localhost:12.0 ; done
+#
 # When the DISPLAY has changed, this makes pressing C-c freeze tmux.
 # See SO for an answer "tmux freezes when using ctrl-prfefix ctrl-y"
-#bind-key C-c run "tmux save-buffer - | xclip -i -sel clipboard"
+#bind-key C-c run "export DISPLAY=localhost:12.0; tmux save-buffer - | xclip -i -sel clipboard; tmux display-message 'Saved'"
+#bind-key C-c run "tmux display-message 'Clipboard saved'"
+#bind-key C-c run "echo $DISPLAY"
 #bind-key C-v run "tmux set-buffer "$(xclip -o -sel clipboard)"; tmux paste-buffer"
 # bind y run-shell -b "tmux save-buffer - | xclip -selection clipboard &>/dfev/null; tmux display-message 'saved to clipboard'"
 #

@@ -253,8 +253,7 @@ found in."
 
 ;; Make control-h Backspace, and move help to C-\. {04d0116336e7}
 (global-set-key (kbd "C-\\") 'help-command)
-(global-set-key (kbd "C-h") 'delete-backward-char)
-
+;(global-set-key (kbd "C-h") 'delete-backward-char)
 
 ;; Use the default binding now: M-g M-g
 ;;(global-set-key* [(meta g)] 'goto-line)
@@ -6596,12 +6595,10 @@ the contents."
 ;; Uses pg_format, sqlfluff, sqlformat.
 (when (require 'sqlformat nil t)
   (setq sqlformat-command 'pgformatter)
-  (setq sqlformat-args '("-s2" "-g"))
+  (setq sqlformat-args '("-s2" "-g")))
 
   ;;(setq sqlformat-command 'sqlfluff)
-
-  ;(define-key sql-mode-map (kbd "C-c C-f") 'sqlformat)
-  )
+  ;;(define-key sql-mode-map (kbd "C-c C-f") 'sqlformat)
 
 
 

@@ -18,6 +18,8 @@ alias l='ls -la'
 alias k1='kill %1'
 alias k2='kill %2'
 alias k3='kill %3'
+alias k4='kill %4'
+alias k5='kill %5'
 alias ka='killall'
 
 # Various funtions.
