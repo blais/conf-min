@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""Slice ascii output along columns of empty space into a table.
+"""
+
+__copyright__ = "Copyright (C) 2023 Martin Blais. All Rights Reserved."
+__author__ = "Martin Blais <blais@furius.ca>"
+
+import argparse
+import csv
+import itertools
+import re
+import sys
+
+
+def slice_line(line, spans):
+    for start, end in spans[:-1]:
+        yield line[start:end].strip()
+    start, end = spans[-1]
+    yield line[start:end].strip()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser.add_argument("filename", nargs="?", help="Filename")
+    parser.add_argument(
+        "-n",
+        "--no-header",
+        action="store_false",
+        default=True,
+        dest="header",
+        help="Ensure header is present or merge detected columns.",
+    )
+    args = parser.parse_args()
+
+    infile = sys.stdin if args.filename in {None, "-"} else open(args.filename, "r")
+    lines = infile.readlines()
+
+    chars = []
+    for line in lines:
+        diff_len = len(line) - len(chars)
+        if diff_len > 0:
+            for _ in range(diff_len):
+                chars.append(" ")
+        chars = [
+            (p if c == " " else "x") for (p, c) in itertools.zip_longest(chars, line)
+        ]
+
+    spans = [match.span() for match in re.finditer("x+", "".join(chars))]
+
+    if args.header:
+        new_spans = []
+        spaniter = zip(spans, slice_line(lines[0], spans))
+        (start, end), _ = next(spaniter)
+        for span, field in spaniter:
+            if field:
+                new_spans.append((start, end))
+                start, end = span
+            else:
+                _, end = span
+        new_spans.append((start, end))
+        spans = new_spans
+
+    writer = csv.writer(sys.stdout)
+    for line in lines:
+        writer.writerow(slice_line(line, spans))
+
+
+# TODO: How does this handle tabs?
+
+
+if __name__ == "__main__":
+    main()

@@ -153,7 +153,7 @@ is a form to run after each repetition."
 	     ;; invoked, and if so, insert the prefix of the previous command to
 	     ;; cause the next command to be parsed with the same prefix, thus
 	     ;; entering its own advice (if it has one).
-	     (let ((keys (concatenate 'vector repeatable-prefix-chars
+	     (let ((keys (cl-concatenate 'vector repeatable-prefix-chars
 				      (list repeatable-last-event))))
 
 	       (if (and ,exit-fun

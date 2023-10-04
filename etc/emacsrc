@@ -20,7 +20,6 @@
 ;; Email setup - emacsrc.email
 ;; Projects - */etc/emacsrc, load them at the end only
 ;; TODO: refresh modules, mark as: distros which package it, whether I use it or not
-;; TODO: use section names from the documentation
 ;; TODO: change a bunch of requires to autoloads, will start a lot faster! and won't fail without presence
 ;; TODO: remove all personal identification from this file (esp. email section) -> conf-home
 ;; TODO: clean up new overrides
@@ -253,7 +252,8 @@ found in."
 
 ;; Make control-h Backspace, and move help to C-\. {04d0116336e7}
 (global-set-key (kbd "C-\\") 'help-command)
-;(global-set-key (kbd "C-h") 'delete-backward-char)
+(global-set-key (kbd "C-h") 'delete-backward-char)
+
 
 ;; Use the default binding now: M-g M-g
 ;;(global-set-key* [(meta g)] 'goto-line)
@@ -652,6 +652,9 @@ found in."
 (require 'cl-lib)
 (setq dired-guess-shell-alist-default
       (cl-subst "evince" "xpdf" dired-guess-shell-alist-default
+                :test (lambda (old new) (and (stringp new) (string= old new)))))
+(setq dired-guess-shell-alist-default
+      (cl-subst "geeqie" "xloadimage" dired-guess-shell-alist-default
                 :test (lambda (old new) (and (stringp new) (string= old new)))))
 
 ;(setq find-file-run-dired nil)
@@ -1462,13 +1465,14 @@ prefix argument is negative, copy that many lines before the current line."
   'global-abbrev-table
   '(
     ("env" "#!/usr/bin/env " nil 0)
+    ("bash" "#!/bin/bash " nil 0)
     ("coding" ".. -*- coding: utf-8 -*-" nil 0)
     ("text" ".. -*- mode: text; fill-column: 80; truncate-lines: t -*-\n" nil 0)
     ("xmlhead" "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>" nil 0)
 
     ("rem" "TODO(blais): Remove" nil 0)
     ("todo" "TODO(blais): " nil 0)
-    ("shrug" "Â¯\\_(ãƒ„)_/Â¯" nil 0)
+    ("shrug" "¯\\_(?)_/¯" nil 0)
 
     ("email" "" insert-email 0)
     ("author" "" insert-author 0)
@@ -1489,7 +1493,7 @@ prefix argument is negative, copy that many lines before the current line."
     ("short-uuid" "" insert-short-uuid 0)
    ))
 
-;; (define-abbrev global-abbrev-table "shrug" "Â¯\\_(ãƒ„)_/Â¯")
+;; (define-abbrev global-abbrev-table "shrug" "¯\\_(?)_/¯")
 
 
 ;;------------------------------------------------------------------------------
@@ -2840,8 +2844,9 @@ the current buffer's directory."
 ;;------------------------------------------------------------------------------
 ;; vdiff
 
-(require 'vdiff)
-(define-key vdiff-mode-map (kbd "C-c") vdiff-mode-prefix-map)
+(when (require 'vdiff nil t)
+  (define-key vdiff-mode-map (kbd "C-c") vdiff-mode-prefix-map)
+  )
 
 ;; ;; Whether to lock scrolling by default when starting vdiff
 ;; (setq vdiff-lock-scrolling t)
@@ -3285,7 +3290,7 @@ point."
 
 
 ;;------------------------------------------------------------------------------
-;; Numbered rectangles.
+;; Numbered sequence rectangles.
 
 (defun number-rectangle (start end no)
   "Replace rectangle contents with a set of incrementing numbers on each line.
@@ -6239,7 +6244,16 @@ and load it in a buffer."
 
 
 ;;------------------------------------------------------------------------------
-;; Support for common build commands (build, lint, test, test-at-point, run).
+;; Rust.
+
+(when (require 'rust-mode nil t)
+  (setq rust-format-on-save t)
+  (define-key* rust-mode-map [(control c)(shift b)] 'rust-format-buffer)
+  )
+
+
+;;------------------------------------------------------------------------------
+;; Bazel for common build commands (build, lint, test, test-at-point, run).
 ;; This is intended to work across any file types and build systems.
 ;; Also, this is in addition to the more general compile command support.
 
@@ -6595,10 +6609,12 @@ the contents."
 ;; Uses pg_format, sqlfluff, sqlformat.
 (when (require 'sqlformat nil t)
   (setq sqlformat-command 'pgformatter)
-  (setq sqlformat-args '("-s2" "-g")))
+  (setq sqlformat-args '("-s2" "-g"))
 
   ;;(setq sqlformat-command 'sqlfluff)
-  ;;(define-key sql-mode-map (kbd "C-c C-f") 'sqlformat)
+
+  ;(define-key sql-mode-map (kbd "C-c C-f") 'sqlformat)
+  )
 
 
 
@@ -6940,7 +6956,25 @@ with all the lines between mark + (mark - point)."
 
 
 ;;------------------------------------------------------------------------------
-;; Offsetting numbers by a specific number
+;; Number sequences.
+
+(defun sequentialize-numbers (beg end)
+  "Find all the isolated numbers in a region and sequentialize them. The first
+number determines the start of the sequence."
+  (interactive "r")
+  (save-excursion
+    (goto-char beg)
+    (let ((mend (make-marker))
+          (counter nil))
+      (set-marker mend end)
+      (when (not (null current-prefix-arg))
+        (setf counter current-prefix-arg))
+      (while (search-forward-regexp "\\b\\([0-9]+\\)\\b" mend t)
+        (if (null counter)
+            (setf counter (1+ (string-to-number (match-string 1))))
+          (progn (replace-match (number-to-string counter))
+                 (setf counter (1+ counter))))
+        ))))
 
 (defun query-replace-numbers-offset (offset)
   "Applies an offset to integers found in the buffer."
@@ -7623,8 +7657,28 @@ process. Attempts to get rid of the buffer afterwards."
 ;; Jupyter notebooks (via emacs-jupyter)
 
 ;; My own setup for Jupyter.
-(require 'jupyter-setup)
-(jupyter-define-keybindings)
+(when (require 'jupyter nil t)
+  (require 'jupyter-setup)
+  (jupyter-define-keybindings)
+  )
+
+
+;;------------------------------------------------------------------------------
+;; Beancount extras
+
+(when (require 'beancount-mode nil t)
+
+  (defun beancount-region-to-table (rmin rmax)
+    "Get the info from \"region\" from `beancount-doctor-program'."
+    (interactive "r")
+    (beancount-command-on-region
+     rmin rmax
+     (list (concat (getenv "PROJECTS") "/beangulp/bin/region-errors-to-table"))))
+
+  (define-key beancount-mode-map [(control c)(e)] #'beancount-region-to-table)
+
+  )
+
 
 
 
