@@ -5,12 +5,13 @@ __author__ = "Martin Blais <blais@furius.ca>"
 
 from datetime import date
 from os import path
+from typing import Tuple, List
 import argparse
 import datetime
+import logging
 import os
 import re
 import string
-from typing import Tuple, List
 
 
 SFROM = "áâàäãéêèëíîìïóôòöõúûùüçøñÁÂÀÄÉÊÈËÍÎÌÏÓÔÒÖÚÛÙÜÇØÑ¡¿"
@@ -28,7 +29,7 @@ def remove_accents(string: str) -> str:
 def splitext_safe(fn: str) -> Tuple[str, str]:
     """Split the extension, handle multiple extensions with special characters."""
     base, ext = os.path.splitext(fn)
-    if re.match("\.[a-z0-9_]+", ext, re.I):
+    if re.match(r"\.[a-z0-9_]+", ext, re.I):
         return base, ext
     else:
         return fn, None
@@ -66,27 +67,34 @@ def main():
     # Input filenames.
     parser.add_argument("filenames", nargs="+", help="Filenames")
 
-    # Options.
-    parser.add_argument(
+    # Actions.
+    group = parser.add_argument_group("action")
+    group.add_argument(
+        "-c",
+        "--clean-filename",
+        action="store_true",
+        help="Clean the filename (default action).",
+    )
+    group.add_argument(
         "-d",
         "--insert-date",
         action="store_true",
-        help="String to insert after the date.",
+        help="Insert a date in front of the filename.",
     )
-    parser.add_argument(
+    group.add_argument(
         "-i",
         "--insert-string",
-        action="store_true",
+        action="store",
         help="String to insert after the date.",
     )
+
+    # Disabling.
     parser.add_argument(
         "-n",
         "--dry-run",
         action="store_true",
         help="don't actually move files, " "just print what you would do instead",
     )
-
-    # Disabling extensions.
     parser.add_argument(
         "-E",
         "--keep-extension",
@@ -101,36 +109,61 @@ def main():
     )
 
     args = parser.parse_args()
+    if args.dry_run:
+        logging.getLogger().setLevel(level=logging.INFO)
+
+    if not (args.clean_filename or args.insert_date or args.insert_string):
+        args.clean_filename = True
 
     for filename in args.filenames:
+        filename = path.abspath(filename)
+        dirname, basename = path.split(filename)
+
         # Idify the portion of the filename we care about.
         ext = None
         if args.keep_extension:
-            rfilename = filename
+            rbasename = basename
         else:
-            rfilename, ext = splitext_safe(filename)
-        ifilename = idify(rfilename, True, ["-"])
+            rbasename, ext = splitext_safe(basename)
+
+        if args.clean_filename:
+            ibasename = idify(rbasename, True, ["-"])
+        else:
+            ibasename = rbasename
         if ext is not None:
-            ifilename += ext
+            ibasename += ext
 
         # Replace idified spaced dashes.
         if not args.keep_spaced_dashes:
-            ifilename = ifilename.replace("_-_", "-")
+            ibasename = ibasename.replace("_-_", "-")
 
         # Optionally insert a prefix.
         if args.insert_string:
-            ifilename = f"{args.insert_string}.{ifilename}"
+            ibasename = f"{args.insert_string}.{ibasename}"
 
         # Optionally insert a date.
         if args.insert_date:
-            cdate = datetime.datetime.fromtimestamp(path.getmtime(filename)).date()
-            ifilename = f"{cdate:%Y-%m-%d}.{ifilename}"
+            mtime = path.getmtime(filename)
+            fdate = datetime.datetime.fromtimestamp(mtime).date()
+
+            match = re.match(r"(\d{4})-(\d{2})-(\d{2})", basename)
+            if match:
+                fndate = datetime.date(*map(int, match.groups()))
+                if fndate != fdate:
+                    logging.warning("File '%s' is already dated with a different date "
+                                    "than %s; skipping dating.", filename, fdate)
+            else:
+                ibasename = f"{fdate:%Y-%m-%d}.{ibasename}"
+
+        ifilename = path.join(dirname, ibasename)
 
         # Perform the name (or print).
-        if not args.dry_run:
+        if ifilename == filename:
+            logging.info("File '%s' rename is identity.", filename)
+        elif not args.dry_run:
             os.rename(filename, ifilename)
         else:
-            print(filename, "->", ifilename)
+            print(filename, ifilename)
 
 
 if __name__ == "__main__":

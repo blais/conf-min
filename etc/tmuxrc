@@ -5,6 +5,9 @@
 # The server socket is stored under /var/run/tmux/tmux-USERID/default
 # - You can make it readable by others, so they can share with you
 
+# Word navigation like the previous style. For 3.3.
+set-option -g word-separators ""
+
 # Make sure we have a lot of history.
 set-option -g history-limit 16384
 

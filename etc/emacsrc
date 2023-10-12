@@ -650,6 +650,7 @@ found in."
 
 ;; Replace xpdf by evince.
 (require 'cl-lib)
+(require 'dired-aux)
 (setq dired-guess-shell-alist-default
       (cl-subst "evince" "xpdf" dired-guess-shell-alist-default
                 :test (lambda (old new) (and (stringp new) (string= old new)))))
@@ -1472,7 +1473,7 @@ prefix argument is negative, copy that many lines before the current line."
 
     ("rem" "TODO(blais): Remove" nil 0)
     ("todo" "TODO(blais): " nil 0)
-    ("shrug" "¯\\_(?)_/¯" nil 0)
+    ("shrug" "?\\_(?)_/?" nil 0)
 
     ("email" "" insert-email 0)
     ("author" "" insert-author 0)
@@ -1493,7 +1494,7 @@ prefix argument is negative, copy that many lines before the current line."
     ("short-uuid" "" insert-short-uuid 0)
    ))
 
-;; (define-abbrev global-abbrev-table "shrug" "¯\\_(?)_/¯")
+;; (define-abbrev global-abbrev-table "shrug" "?\\_(?)_/?")
 
 
 ;;------------------------------------------------------------------------------
@@ -7302,6 +7303,11 @@ horizontal split."
                                    "[a-z_]+\\( {\\|: \\(<\\|[0-9]+\\|\".*\"\\)\\)\\s-*$") 'pbascii-mode)))
       )))
 
+(require 'clang-format)
+(setq clang-format-style "file")
+(define-key* protobuf-mode-map [(control c)(shift b)] 'clang-format-buffer)
+
+
 
 
 ;;;; ==========================================================================
@@ -7676,6 +7682,20 @@ process. Attempts to get rid of the buffer afterwards."
      (list (concat (getenv "PROJECTS") "/beangulp/bin/region-errors-to-table"))))
 
   (define-key beancount-mode-map [(control c)(e)] #'beancount-region-to-table)
+
+  (defun beancount-toggle-flag ()
+    "Toggle the flag of the enclosing transaction between '*' and '!'."
+    (interactive)
+    (save-excursion
+      ;; Go to the beginning of the enclosing directive.
+      (beancount-beginning-of-directive)
+      (when (re-search-forward (concat "\\s-+" beancount-flag-regexp "\\s-") nil t)
+        (backward-char 2)
+        (let ((char (if (looking-at "*") "!" (if (looking-at "!") "*", "!"))))
+          (delete-forward-char 1)
+          (insert char)))))
+
+  (define-key beancount-mode-map (kbd "C-c *") #'beancount-toggle-flag)
 
   )
 

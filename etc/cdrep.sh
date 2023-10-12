@@ -1,4 +1,4 @@
-# Changing directory while making a replacement in current path.
+# Changing directory, making a replacement in current path.
 function cdrep() {
     local newdir=${PWD/$1/$2}
     if [ "x$PWD" = "x$newdir" ]; then
