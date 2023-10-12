@@ -243,7 +243,7 @@ class MainWindow(QWidget):
             "height": g.height(),
             "x": g.x(),
             "y": g.y(),
-            "direction": self.layout().direction().name.decode("utf8"),
+            "direction": self.layout().direction().name,
         }
 
     def set_geometry(self, geometry):
