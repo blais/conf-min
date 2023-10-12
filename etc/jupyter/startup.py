@@ -17,4 +17,4 @@ pandas.set_option("display.max_rows", 5000)
 
 # cell_display: str, optional, Specifies what code a shell should output.
 #   Options are: ["all", "last", "last_expr", "none", "last_expr_or_assign"]
-interactiveshell.InteractiveShell.ast_node_interactivity = "last_expr_or_assign"
+interactiveshell.InteractiveShell.ast_node_interactivity = "all"
