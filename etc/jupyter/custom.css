@@ -23,41 +23,19 @@
     font-size: 9pt;
 }
 
-div.input_area {
-    border: none;
-    border-top: thin solid #DDD;
-}
-
 div.output_area {
     font-family: "Fira Code";
     font-size: 9pt;
 }
 
-div.prompt_container {
-    width: 3em;
-}
-
 div.input_prompt {
     font-family: 'Fira Sans Condensed', sans-serif;
-    font-size: 8pt;
-    color: #CCF;
-    text-align: left;
-}
-
-div.output_prompt {
-    font-family: 'Fira Sans Condensed', sans-serif;
-    font-size: 8pt;
-    color: #FCC;
-    text-align: left;
+    font-size: 10pt;
 }
 
 div.timing_area {
-    color: #CCC;
+    color: gray;
     font-size: 6pt;
-    font-style: italic;
-    border: none;
-    text-align: right;
-    background-color: #FFF;
 }
 
 div#header-container {
