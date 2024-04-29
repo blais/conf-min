@@ -97,6 +97,10 @@ if they exist."
 	 (apply 'append (mapcar 'get-immediate-subdirs
 				(file-expand-wildcards (concat user-projects-root "/*/lib/elisp")))))
 
+       (let ((beancount-mode-dir (concat user-projects-root "/beancount-mode")))
+         (when (file-exists-p beancount-mode-dir)
+           beancount-mode-dir))
+
        ;; Original load-path.
        load-path
 
@@ -252,7 +256,7 @@ found in."
 
 ;; Make control-h Backspace, and move help to C-\. {04d0116336e7}
 (global-set-key (kbd "C-\\") 'help-command)
-(global-set-key (kbd "C-h") 'delete-backward-char)
+;;(global-set-key (kbd "C-h") 'delete-backward-char)
 
 
 ;; Use the default binding now: M-g M-g
@@ -7305,6 +7309,7 @@ horizontal split."
 
 (require 'clang-format)
 (setq clang-format-style "file")
+(require 'protobuf-mode)
 (define-key* protobuf-mode-map [(control c)(shift b)] 'clang-format-buffer)
 
 
@@ -7668,36 +7673,6 @@ process. Attempts to get rid of the buffer afterwards."
   (jupyter-define-keybindings)
   )
 
-
-;;------------------------------------------------------------------------------
-;; Beancount extras
-
-(when (require 'beancount-mode nil t)
-
-  (defun beancount-region-to-table (rmin rmax)
-    "Get the info from \"region\" from `beancount-doctor-program'."
-    (interactive "r")
-    (beancount-command-on-region
-     rmin rmax
-     (list (concat (getenv "PROJECTS") "/beangulp/bin/region-errors-to-table"))))
-
-  (define-key beancount-mode-map [(control c)(e)] #'beancount-region-to-table)
-
-  (defun beancount-toggle-flag ()
-    "Toggle the flag of the enclosing transaction between '*' and '!'."
-    (interactive)
-    (save-excursion
-      ;; Go to the beginning of the enclosing directive.
-      (beancount-beginning-of-directive)
-      (when (re-search-forward (concat "\\s-+" beancount-flag-regexp "\\s-") nil t)
-        (backward-char 2)
-        (let ((char (if (looking-at "*") "!" (if (looking-at "!") "*", "!"))))
-          (delete-forward-char 1)
-          (insert char)))))
-
-  (define-key beancount-mode-map (kbd "C-c *") #'beancount-toggle-flag)
-
-  )
 
 
 
@@ -8360,6 +8335,7 @@ whose basenames match the PRED predicate."
 					     (not (string-match "conf" x)))))
 )
 
+
 ;; Automatically initialize the filecache on startup.
 ;; We do this after processing the project files, which may add to the filecache.
 (file-cache-initialize)
@@ -8423,6 +8399,38 @@ an increasing numeric suffix."
   "Align pairs of attributes."
   (interactive "r")
   (align-regexp beg end "^\\s-+\\S-+\\(\\s-+\\)\\S-+\\s-*[=;]" 1 2 nil) )
+
+
+;;------------------------------------------------------------------------------
+;; Beancount extras
+
+;; Note: This must come after project paths are setup.
+(when (require 'beancount nil t)
+
+  (defun beancount-region-to-table (rmin rmax)
+    "Get the info from \"region\" from `beancount-doctor-program'."
+    (interactive "r")
+    (beancount-command-on-region
+     rmin rmax
+     (list (concat (getenv "PROJECTS") "/beangulp/bin/region-errors-to-table"))))
+
+  (define-key beancount-mode-map [(control c)(e)] #'beancount-region-to-table)
+
+  (defun beancount-toggle-flag ()
+    "Toggle the flag of the enclosing transaction between '*' and '!'."
+    (interactive)
+    (save-excursion
+      ;; Go to the beginning of the enclosing directive.
+      (beancount-beginning-of-directive)
+      (when (re-search-forward (concat "\\s-+" beancount-flag-regexp "\\s-") nil t)
+        (backward-char 2)
+        (let ((char (if (looking-at "*") "!" (if (looking-at "!") "*", "!"))))
+          (delete-forward-char 1)
+          (insert char)))))
+
+  (define-key beancount-mode-map (kbd "C-c *") #'beancount-toggle-flag)
+
+  )
 
 
 ;; END

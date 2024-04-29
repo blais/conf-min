@@ -1,0 +1,156 @@
+# -*- mode: python -*-
+"""Personal plugins of Martin Blais."""
+
+from os import path
+import collections
+import numpy as np
+import pandas as pd
+import polars as pl
+import subprocess
+import sys
+import pprint
+
+
+try:
+    import beancount as bn
+except ImportError:
+    pass
+else:
+    sys.path.insert(0, "/home/blais/p/beancount/experiments/visidata")
+    import beancount_visidata_plugin
+
+#-------------------------------------------------------------------------------
+# Set options.
+
+# Removes the funny MOTD.
+options.motd_url = ""
+
+# Ask before quitting a modified sheet.
+options.quitguard = True
+
+
+#-------------------------------------------------------------------------------
+# Some Emacs keybindings
+
+TableSheet.bindkey("^V", "go-pagedown")
+TableSheet.bindkey("Alt+v", "go-pageup")
+TableSheet.bindkey("^_", "undo-last")
+TableSheet.bindkey("^/", "undo-last")
+
+
+#-------------------------------------------------------------------------------
+# Add a way to show/hide individual columns in the Columns metashet.
+# Submitted as PR: https://github.com/saulpw/visidata/pull/2394
+ColumnsSheet.addCommand(
+    "-",
+    "hide-current",
+    "cursorRow.hide(True); cursorDown(1)",
+    "hide current source column",
+)
+ColumnsSheet.addCommand(
+    "+",
+    "show-current",
+    "cursorRow.hide(False); cursorDown(1)",
+    "show current source column",
+)
+
+
+#-------------------------------------------------------------------------------
+# Add a command to launch the current file with an arbitrary program.
+
+VIEWER_HISTORY = []
+
+
+def guess_program(filename: str) -> str:
+    basename, ext = path.splitext(filename)
+    ext = ext.lower()
+    with open("/tmp/log", "w") as f:
+        print(ext, file=f)
+    if ext == '.pdf':
+        return 'evince'
+    elif ext == '.jpg':
+        return 'geeqie'
+
+
+@visidata.VisiData.api
+def launchViewer(vd, *args):
+    "Launch $EDITOR with *args* as arguments."
+    global VIEWER_HISTORY
+
+    filename = str(args[0])
+    if not path.exists(filename):
+        vd.fail(f"Value '{filename}' is not an existing filename.")
+
+    program = guess_program(filename)
+    if program and (not VIEWER_HISTORY or VIEWER_HISTORY[0] != program):
+        VIEWER_HISTORY.append(program)
+
+    viewer = vd.input(
+        "viewer: ",
+        history=VIEWER_HISTORY,
+        defaultLast=bool(VIEWER_HISTORY),
+    )
+    if not viewer.strip():
+        vd.fail("Viewer not provided")
+    elif viewer not in VIEWER_HISTORY:
+        VIEWER_HISTORY.insert(0, viewer)
+
+    args = viewer.split() + list(args)
+    with SuspendCurses():
+        # subprocess.call(args)
+        cproc = subprocess.Popen(args)
+
+
+DirSheet.addCommand(
+    "Alt+!",
+    "sysopen-row-shell-command",
+    "launchViewer(cursorRow)",
+    "open current file in external program (input manually)",
+)
+
+
+#-------------------------------------------------------------------------------
+# Support multiple selections.
+
+
+# A mapping of the column to the selection number.
+SELECTED_COLUMNS = {}
+
+
+def select_column(col: Column, selection: int):
+    if col in SELECTED_COLUMNS:
+        if SELECTED_COLUMNS[col] == selection:
+            del SELECTED_COLUMNS[col]
+        else:
+            SELECTED_COLUMNS[col] = selection
+    else:
+        SELECTED_COLUMNS[col] = selection
+
+    with open("/tmp/log", "a") as f:
+        pprint.pprint(dict(SELECTED_COLUMNS), stream=f)
+
+
+TableSheet.addCommand(
+    "1",
+    "select-column-1",
+    "select_column(cursorCol, 1)",
+    "toggle the status of 1-selection of the current column",
+)
+TableSheet.addCommand(
+    "2",
+    "select-column-2",
+    "select_column(cursorCol, 2)",
+    "toggle the status of 1-selection of the current column",
+)
+TableSheet.addCommand(
+    "3",
+    "select-column-3",
+    "select_column(cursorCol, 3)",
+    "toggle the status of 1-selection of the current column",
+)
+
+
+# TODO: Support {} or $FILE as placeholder for filename in command.
+# TODO: Check if we can do redirects (shell=True?)
+# TODO: Add M-p/M-n bindings to history input.
+# TODO: Support Decimal type?
