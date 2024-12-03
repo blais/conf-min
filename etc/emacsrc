@@ -7790,7 +7790,7 @@ process. Attempts to get rid of the buffer afterwards."
   (custom-set-faces
    ;; Make the window separator without a background color, more sparse, if we
    ;; have 256 colors to display on a dark background.
-   `(vertical-border ((,items-dark-console-256 (:background nil))))
+   `(vertical-border ((,items-dark-console-256 (:background unspecified))))
    ;;`(font-lock-comment-face ((,items-dark-console-256 (:foreground "yellow"))))
    ;;`(font-lock-comment-delimiter-face
    )
@@ -8456,7 +8456,7 @@ an increasing numeric suffix."
  '(ediff-odd-diff-A ((((class color)) (:background "#666" :weight bold))))
  '(ediff-odd-diff-B ((((class color)) (:background "#666" :weight bold))))
  '(ediff-odd-diff-C ((((class color)) (:background "#666" :weight bold))))
- '(vertical-border ((((class color) (min-colors 256) (background dark)) (:background nil)))))
+ '(vertical-border ((((class color) (min-colors 256) (background dark)) (:background unspecified)))))
 
 
 
