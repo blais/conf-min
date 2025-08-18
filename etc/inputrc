@@ -1,0 +1,9 @@
+set meta-flag on
+set input-meta on
+set output-meta on
+
+set convert-meta on
+
+"\M-K": " 2>&1"
+"\M-L": " 2>&1|lessr"
+"\C-\M-w": "| while read f ; do echo $f ; done"
