@@ -5,14 +5,18 @@
 # The server socket is stored under /var/run/tmux/tmux-USERID/default
 # - You can make it readable by others, so they can share with you
 
+# Make sure the copy-mode bindings are Emacs (this is needed under Windoze).
+setw -g mode-keys emacs
+
 # Word navigation like the previous style. For 3.3.
 set-option -g word-separators ""
 
 # Make sure we have a lot of history.
 set-option -g history-limit 16384
 
-# Insure we have a 256 color terminal.
-set-option -g default-terminal screen-256color
+# Insure we have a true color terminal.
+set-option -g default-terminal "xterm-256color"
+set-option -ga terminal-overrides ",xterm-256color:Tc""
 
 # Time delay required to detect function keys. We don't really need this, but it helps using ESC in emacs.
 set -s escape-time 50
@@ -72,7 +76,6 @@ bind-key    -T copy-mode    C-s  command-prompt -i -p "(search down)" "send -X s
 
 # A key to reset the size.
 bind-key    r    resize-window -A
-
 
 # About refresh problem... try this:
 ##set-window-option -g xterm-keys

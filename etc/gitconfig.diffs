@@ -6,14 +6,14 @@
 [merge]
 	tool = emacs-merge
 [mergetool "emacs-merge"]
-	cmd = ~/p/conf/bin/emacs-merge \"$LOCAL\" \"$REMOTE\" \"$BASE\" \"$MERGED\"
+	cmd = ~/p/conf-min/bin/emacs-merge \"$LOCAL\" \"$REMOTE\" \"$BASE\" \"$MERGED\"
 
 [difftool "emacs-diff"]
-        cmd = ~/p/conf/bin/emacs-diff \"$LOCAL\" \"$REMOTE\"
+        cmd = ~/p/conf-min/bin/emacs-diff \"$LOCAL\" \"$REMOTE\"
 [difftool "tmux-diff"]
-        cmd = ~/p/conf/bin/tmux-diff \"$LOCAL\" \"$REMOTE\"
+        cmd = ~/p/conf-min/bin/tmux-diff \"$LOCAL\" \"$REMOTE\"
 [difftool "activediff"]
-        cmd = ~/p/conf/bin/tmux-diff-dirs \"$LOCAL\" \"$REMOTE\"
+        cmd = ~/p/conf-min/bin/tmux-diff-dirs \"$LOCAL\" \"$REMOTE\"
 
 [difftool "xxdiff"]
         cmd = ~/p/xxdiff/bin/xxdiff \"$LOCAL\" \"$REMOTE\"

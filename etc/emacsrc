@@ -1475,8 +1475,8 @@ prefix argument is negative, copy that many lines before the current line."
     ("text" ".. -*- mode: text; fill-column: 80; truncate-lines: t -*-\n" nil 0)
     ("xmlhead" "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>" nil 0)
 
-    ("rem" "TODO(blais): Remove" nil 0)
-    ("todo" "TODO(blais): " nil 0)
+    ("rem" (concat "TODO(" (getenv "USER") "): Remove" nil 0)
+    ("todo" (concat "TODO(" (getenv "USER") "): Remove" nil 0) nil 0)
     ("shrug" "?\\_(?)_/?" nil 0)
 
     ("email" "" insert-email 0)
@@ -3604,7 +3604,9 @@ Otherwise, pop the mark and yank the contents of the region."
     (interactive)
     (if current-prefix-arg
         (apply orig args)
-      (call-interactively 'kill-this-buffer)))
+      (kill-this-buffer)))
+  ;; Removed on 2025-08-06
+  ;; (call-interactively 'kill-this-buffer)))
   (advice-add 'ido-kill-buffer :around #'kill-this-buffer-maybe)
 
   ;; Ignore case by default.
@@ -5366,18 +5368,17 @@ current buffer."
   (repeatable-command-advice outline-previous-visible-heading)
   (repeatable-command-advice outline-up-heading) )
 
-(require 'org)
+(when (require 'org nil t)
+  (when (featurep 'repeatable)
+    (repeatable-command-advice org-forward-same-level)
+    (repeatable-command-advice org-backward-same-level) )
 
-(when (featurep 'repeatable)
-  (repeatable-command-advice org-forward-same-level)
-  (repeatable-command-advice org-backward-same-level) )
+  (define-key* org-mode-map [(control c) (control r)] 'rst-shift-region-right)
+  (define-key* org-mode-map [(control c) (control l)] 'rst-shift-region-left)
 
-(define-key* org-mode-map [(control c) (control r)] 'rst-shift-region-right)
-(define-key* org-mode-map [(control c) (control l)] 'rst-shift-region-left)
-
-(define-key* org-mode-map [(control c)(l)] 'org-store-link)
-(define-key* org-mode-map [(control c)(a)] 'org-agenda)
-
+  (define-key* org-mode-map [(control c)(l)] 'org-store-link)
+  (define-key* org-mode-map [(control c)(a)] 'org-agenda)
+  )
 
 ;;------------------------------------------------------------------------------
 ;; Visual Basic
@@ -6232,10 +6233,10 @@ and load it in a buffer."
 
 ;; For Python black support.
 ;; Note: We prefer python-black.el over blacken.el (more better).
-(require 'python-black nil t)
-
-(define-key* python-mode-map [(control c)(shift b)] 'python-black-buffer)
-
+(if (require 'ruff-format nil t)
+    (define-key* python-mode-map [(control c)(shift b)] 'ruff-format-buffer)
+  (if (require 'python-black nil t)
+      (define-key* python-mode-map [(control c)(shift b)] 'python-black-buffer)))
 
 ;(flycheck-add-next-checker 'python-mypy '(t . python-pylint))
 
@@ -7307,10 +7308,10 @@ horizontal split."
                                    "[a-z_]+\\( {\\|: \\(<\\|[0-9]+\\|\".*\"\\)\\)\\s-*$") 'pbascii-mode)))
       )))
 
-(require 'clang-format)
-(setq clang-format-style "file")
-(require 'protobuf-mode)
-(define-key* protobuf-mode-map [(control c)(shift b)] 'clang-format-buffer)
+(when (require 'clang-format nil t)
+  (setq clang-format-style "file")
+  (when (require 'protobuf-mode nil t)
+    (define-key* protobuf-mode-map [(control c)(shift b)] 'clang-format-buffer)))
 
 
 

@@ -235,6 +235,9 @@ def main():
     chars = (string.digits + string.ascii_letters)[1:] + (' ' * len(filemap))
     options = [(chars[index], name, value)
                for index, (name, value) in enumerate(sorted(filemap))]
+    if not options:
+        print("No diffs.", file=sys.stderr)
+        sys.exit(1)
     picker = Picker(options, "Diff files.")
     while True:
         try:

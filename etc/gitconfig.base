@@ -1,7 +1,7 @@
 # -*- mode: conf -*-
 
 [core]
-	editor = ~/p/conf/bin/e
+	editor = ~/p/conf-min/bin/e
 
 [alias]
         glog = log --graph

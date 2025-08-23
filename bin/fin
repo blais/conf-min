@@ -6,6 +6,7 @@ completion of a task, while he is working on something else.
 """
 __author__ = "Martin Blais <blais@furius.ca>"
 
+from os import path
 import argparse
 import os
 import random
@@ -15,8 +16,15 @@ import subprocess
 
 def display_tmux(message: str):
     window = "finc-{:10d}".format(random.randint(0, int(1e10)))
-    command = f"dialog --msgbox '{message}' 10 80"
-    subprocess.run(["tmux", "new-window", "-n", window, command])
+    if path.exists("/usr/bin/whiptail"):
+        # TODO(blais): Center thsi eventually.
+        command = f"whiptail --msgbox '{message}' 10 80"
+    elif path.exists("/usr/bin/dialog"):
+        command = f"dialog --msgbox '{message}' 10 80"
+    else:
+        raise OSError("Neither 'whiptail' nor 'dialog' were found in standard locations.")
+    tmux_command = ["tmux", "new-window", "-n", window, command]
+    subprocess.run(tmux_command)
 
 
 def display_graphical(message: str):
