@@ -1476,7 +1476,7 @@ prefix argument is negative, copy that many lines before the current line."
     ("xmlhead" "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>" nil 0)
 
     ("rem" (concat "TODO(" (getenv "USER") "): Remove" nil 0)
-    ("todo" (concat "TODO(" (getenv "USER") "): Remove" nil 0) nil 0)
+    ("todo" (concat "TODO(" (getenv "USER") "): Remove" nil 0)
     ("shrug" "?\\_(?)_/?" nil 0)
 
     ("email" "" insert-email 0)
