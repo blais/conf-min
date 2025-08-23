@@ -17,7 +17,7 @@ import subprocess
 def display_tmux(message: str):
     window = "finc-{:10d}".format(random.randint(0, int(1e10)))
     if path.exists("/usr/bin/whiptail"):
-        # TODO(blais): Center thsi eventually.
+        # TODO(blais): Center this eventually.
         command = f"whiptail --msgbox '{message}' 10 80"
     elif path.exists("/usr/bin/dialog"):
         command = f"dialog --msgbox '{message}' 10 80"
